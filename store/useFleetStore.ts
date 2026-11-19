@@ -449,7 +449,12 @@ export const useFleetStore = create<FleetStoreState>()(
       },
 
       opsReassignDriver: (tripId) => {
+        const previousVehicleId = get().trips.find((t) => t.id === tripId)?.vehicleId;
         transportSendRef?.({ type: "ops.reassign", tripId });
+        const nextVehicleId = get().trips.find((t) => t.id === tripId)?.vehicleId;
+        if (nextVehicleId && nextVehicleId !== previousVehicleId && get().selectedVehicleId !== null) {
+          set({ selectedVehicleId: nextVehicleId });
+        }
         toast("Driver reassigned", {
           description: `Nearest available unit dispatched to ${tripId}`,
           tone: "live",
