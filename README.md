@@ -30,8 +30,8 @@ npm run dev        # http://localhost:3000
 |---|---|---|
 | 1 | Foundation, design system, PWA/TWA shell | ✅ Done |
 | 2 | Fleet engine, Ethiopia city data, store | ✅ Done |
-| 3 | 3D map engine | ⏳ Next |
-| 4 | Mobile app `/` (Rider + Driver) | — |
+| 3 | 3D map engine | ✅ Done |
+| 4 | Mobile app `/` (Rider + Driver) | ⏳ Next |
 | 5 | Ops command center `/dispatch`, polish, release | — |
 
 ## PWA & Android TWA
