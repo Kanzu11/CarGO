@@ -113,6 +113,7 @@ export interface FleetStoreState {
   acceptDriverJob: () => void;
   declineDriverJob: () => void;
   advanceDriverJob: () => void;
+  cancelActiveDriverTrip: () => void;
 
   // Ops Command Center actions
   setTrafficEnabled: (enabled: boolean) => void;
@@ -410,6 +411,19 @@ export const useFleetStore = create<FleetStoreState>()(
         transportSendRef?.({ type: "job.advance", tripId: activeDriverTripId });
       },
 
+      cancelActiveDriverTrip: () => {
+        const { activeDriverTripId } = get();
+        if (activeDriverTripId) {
+          transportSendRef?.({
+            type: "trip.cancel",
+            tripId: activeDriverTripId,
+            reason: "Cancelled by driver",
+          });
+        }
+        set({ activeDriverTripId: null });
+        toast("Trip cancelled", { tone: "warn" });
+      },
+
       setTrafficEnabled: (enabled) => {
         set({ trafficEnabled: enabled });
         transportSendRef?.({ type: "sim.traffic", enabled });
@@ -468,8 +482,11 @@ export const useFleetStore = create<FleetStoreState>()(
             for (const frame of message.frames) {
               telemetryFrameBuffer.set(frame.id, frame);
             }
+            const prevRiderId = get().activeRiderTripId;
             const riderTrip =
-              message.trips.find((t) => t.source === "rider") ?? get().persistedRiderTrip;
+              (prevRiderId ? message.trips.find((t) => t.id === prevRiderId) : undefined) ??
+              message.trips.find((t) => t.source === "rider" && isActiveTripPhase(t.phase)) ??
+              get().persistedRiderTrip;
             const driverTrip = message.trips.find(
               (t) => t.source === "driver" && isActiveTripPhase(t.phase),
             );
@@ -480,7 +497,7 @@ export const useFleetStore = create<FleetStoreState>()(
               kpis: message.kpis,
               trafficEnabled: message.trafficEnabled,
               driverOffer: message.driverOffer,
-              activeRiderTripId: riderTrip ? riderTrip.id : get().activeRiderTripId,
+              activeRiderTripId: riderTrip ? riderTrip.id : prevRiderId,
               persistedRiderTrip:
                 riderTrip && isActiveTripPhase(riderTrip.phase) ? riderTrip : null,
               riderStep:
@@ -498,10 +515,9 @@ export const useFleetStore = create<FleetStoreState>()(
               telemetryFrameBuffer.set(frame.id, frame);
             }
             const prevRiderId = get().activeRiderTripId;
-            const latestRiderTrip =
-              (prevRiderId
-                ? message.trips.find((t) => t.id === prevRiderId)
-                : undefined) ?? message.trips.find((t) => t.source === "rider");
+            const latestRiderTrip = prevRiderId
+              ? message.trips.find((t) => t.id === prevRiderId)
+              : message.trips.find((t) => t.source === "rider" && isActiveTripPhase(t.phase));
 
             const latestDriverTrip = message.trips.find(
               (t) => t.source === "driver" && isActiveTripPhase(t.phase),

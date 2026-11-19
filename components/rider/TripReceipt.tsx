@@ -1,0 +1,94 @@
+"use client";
+
+import { CheckCircle2, Star } from "lucide-react";
+import { useState } from "react";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
+import { cn } from "@/lib/cn";
+import { paymentMethodLabel } from "@/lib/eta";
+import { TIERS } from "@/lib/tiers";
+import type { Trip } from "@/types/fleet";
+
+export interface TripReceiptProps {
+  trip: Trip;
+  onDone: (rating: number) => void;
+}
+
+/**
+ * Completed trip receipt with locked fare breakdown, payment method, and 5-star rating.
+ */
+export function TripReceipt({ trip, onDone }: TripReceiptProps) {
+  const [rating, setRating] = useState(5);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
+        <div className="flex items-center gap-2">
+          <Icon icon={CheckCircle2} size={18} className="shrink-0 text-live" />
+          <div>
+            <p className="text-[15px] font-semibold text-ink">Trip completed</p>
+            <p className="text-[12px] text-muted">
+              {TIERS[trip.tier].name} · <span className="num">{trip.distanceKm.toFixed(1)} km</span>
+            </p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="num text-[18px] font-semibold text-ink">{trip.fareEtb} ETB</p>
+          <Badge tone="live">{paymentMethodLabel(trip.payment)}</Badge>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-line bg-surface p-2.5 text-[12px]">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate font-medium text-ink">
+            {trip.pickup.name} → {trip.dropoff.name}
+          </span>
+        </div>
+        {trip.driver && (
+          <p className="mt-1 text-muted">
+            Driver: <span className="font-medium text-ink">{trip.driver.name}</span>
+            {trip.plate ? (
+              <>
+                {" · "}
+                <span className="num font-mono">{trip.plate}</span>
+              </>
+            ) : null}
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between rounded-lg border border-line bg-canvas px-3 py-2">
+        <span className="text-[13px] font-medium text-ink">Rate your driver</span>
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="Driver rating">
+          {[1, 2, 3, 4, 5].map((star) => {
+            const active = star <= rating;
+            return (
+              <button
+                key={star}
+                type="button"
+                role="radio"
+                aria-checked={rating === star}
+                aria-label={`${star} star${star === 1 ? "" : "s"}`}
+                onClick={() => setRating(star)}
+                className="flex h-8 w-8 items-center justify-center rounded-[6px] hover:bg-surface"
+              >
+                <Icon
+                  icon={Star}
+                  size={17}
+                  className={cn(
+                    active ? "fill-warn text-warn" : "text-line-strong",
+                  )}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <Button block size="lg" onClick={() => onDone(rating)}>
+        Done
+      </Button>
+    </div>
+  );
+}

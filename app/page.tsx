@@ -1,5 +1,5 @@
-import { Phase3MobilePreview } from "@/components/map/Phase3MobilePreview";
+import { MobileShell } from "@/components/mobile/MobileShell";
 
 export default function HomePage() {
-  return <Phase3MobilePreview />;
+  return <MobileShell />;
 }

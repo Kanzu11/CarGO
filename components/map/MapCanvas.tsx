@@ -3,6 +3,7 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
   AttributionControl,
+  LngLatBounds,
   Map as MapLibreMap,
   setWorkerUrl,
   type ErrorEvent,
@@ -50,6 +51,8 @@ export interface MapCanvasProps {
   showAllTrips?: boolean;
   followVehicleId?: string | null;
   previewRoute?: ReadonlyArray<LngLat>;
+  fitBoundsCoords?: ReadonlyArray<LngLat> | null;
+  fitBoundsKey?: string;
   padding?: MapPadding;
   onMapClick?: (coords: LngLat) => void;
   onVehicleClick?: (vehicleId: string) => void;
@@ -64,6 +67,8 @@ export default function MapCanvas({
   showAllTrips = false,
   followVehicleId = null,
   previewRoute,
+  fitBoundsCoords,
+  fitBoundsKey,
   padding,
   onMapClick,
   onVehicleClick,
@@ -317,6 +322,50 @@ export default function MapCanvas({
       left: padding?.left ?? 0,
     });
   }, [mapReady, padding?.top, padding?.right, padding?.bottom, padding?.left]);
+
+  const lastFitKeyRef = useRef<string | undefined>(undefined);
+  const fitDataRef = useRef({ fitBoundsCoords, padding, map3dEnabled });
+  useEffect(() => {
+    fitDataRef.current = { fitBoundsCoords, padding, map3dEnabled };
+  });
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !fitBoundsKey || lastFitKeyRef.current === fitBoundsKey) return;
+    const coords = fitDataRef.current.fitBoundsCoords;
+    if (!coords || coords.length < 2) return;
+    lastFitKeyRef.current = fitBoundsKey;
+
+    const bounds = new LngLatBounds(coords[0]!, coords[0]!);
+    for (const pt of coords) {
+      bounds.extend(pt);
+    }
+
+    const pad = fitDataRef.current.padding;
+    const width = containerRef.current?.clientWidth ?? 400;
+    const height = containerRef.current?.clientHeight ?? 700;
+    const rawLeft = (pad?.left ?? 0) + 32;
+    const rawRight = (pad?.right ?? 0) + 32;
+    const rawTop = (pad?.top ?? 0) + 32;
+    const rawBottom = (pad?.bottom ?? 0) + 32;
+
+    const maxHoriz = Math.max(40, width - 90);
+    const maxVert = Math.max(40, height - 90);
+    const horizScale = rawLeft + rawRight > maxHoriz ? maxHoriz / (rawLeft + rawRight) : 1;
+    const vertScale = rawTop + rawBottom > maxVert ? maxVert / (rawTop + rawBottom) : 1;
+
+    map.fitBounds(bounds, {
+      padding: {
+        top: Math.round(rawTop * vertScale),
+        bottom: Math.round(rawBottom * vertScale),
+        left: Math.round(rawLeft * horizScale),
+        right: Math.round(rawRight * horizScale),
+      },
+      maxZoom: 15.8,
+      pitch: fitDataRef.current.map3dEnabled ? 45 : 0,
+      duration: 650,
+    });
+  }, [mapReady, fitBoundsKey]);
 
   // Sync route ribbons & 3D pickup/dropoff pins
   const visibleTrips = useMemo(() => {
