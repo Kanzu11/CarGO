@@ -24,7 +24,6 @@ import {
 } from "@/components/map/map3d";
 import {
   ensureCargoLayers,
-  FLEET_3D_LAYER_ID,
   FLEET_SPRITES_LAYER_ID,
   syncFleetLayerMode,
   updateRoutesAndPins,
@@ -137,7 +136,7 @@ export default function MapCanvas({
       container,
       style: OPENFREEMAP_POSITRON_STYLE,
       center: initialCity.center,
-      zoom: variant === "dispatch" ? initialCity.zoom - 0.5 : initialCity.zoom,
+      zoom: variant === "dispatch" ? initialCity.zoom - 0.5 : initialCity.zoom + 0.5,
       pitch: initial3d ? preset.pitch : 0,
       bearing: initial3d ? initialCity.bearing : 0,
       maxPitch: 68,
@@ -216,11 +215,10 @@ export default function MapCanvas({
     });
 
     map.on("click", (event: MapMouseEvent) => {
-      const queryLayers = [FLEET_3D_LAYER_ID, FLEET_SPRITES_LAYER_ID].filter((id) =>
-        Boolean(map.getLayer(id)),
-      );
-      if (queryLayers.length > 0) {
-        const hit = map.queryRenderedFeatures(event.point, { layers: queryLayers })[0];
+      if (map.getLayer(FLEET_SPRITES_LAYER_ID)) {
+        const hit = map.queryRenderedFeatures(event.point, {
+          layers: [FLEET_SPRITES_LAYER_ID],
+        })[0];
         const vehicleId = hit?.properties?.id as string | undefined;
         if (vehicleId) {
           latestRef.current.onVehicleClick?.(vehicleId);
@@ -234,11 +232,10 @@ export default function MapCanvas({
     });
 
     map.on("mousemove", (event: MapMouseEvent) => {
-      const queryLayers = [FLEET_3D_LAYER_ID, FLEET_SPRITES_LAYER_ID].filter((id) =>
-        Boolean(map.getLayer(id)),
-      );
-      if (queryLayers.length === 0) return;
-      const hits = map.queryRenderedFeatures(event.point, { layers: queryLayers });
+      if (!map.getLayer(FLEET_SPRITES_LAYER_ID)) return;
+      const hits = map.queryRenderedFeatures(event.point, {
+        layers: [FLEET_SPRITES_LAYER_ID],
+      });
       map.getCanvas().style.cursor = hits.length > 0 ? "pointer" : "";
     });
 
@@ -301,7 +298,7 @@ export default function MapCanvas({
 
     map.flyTo({
       center: city.center,
-      zoom: variant === "dispatch" ? city.zoom - 0.5 : city.zoom,
+      zoom: variant === "dispatch" ? city.zoom - 0.5 : city.zoom + 0.5,
       pitch: map3dEnabled ? preset.pitch : 0,
       bearing: map3dEnabled ? city.bearing : 0,
       duration: 1100,
@@ -403,7 +400,7 @@ export default function MapCanvas({
 
     map.flyTo({
       center: city.center,
-      zoom: variant === "dispatch" ? city.zoom - 0.5 : city.zoom,
+      zoom: variant === "dispatch" ? city.zoom - 0.5 : city.zoom + 0.5,
       pitch: map3dEnabled ? preset.pitch : 0,
       bearing: map3dEnabled ? city.bearing : 0,
       duration: 750,

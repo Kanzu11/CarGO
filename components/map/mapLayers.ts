@@ -7,13 +7,12 @@ import type { LngLat, Trip } from "@/types/fleet";
 export const ROUTES_SOURCE_ID = "cargo-routes";
 export const PINS_3D_SOURCE_ID = "cargo-pins-3d";
 export const PINS_POINTS_SOURCE_ID = "cargo-pins-points";
-export const FLEET_3D_SOURCE_ID = "cargo-fleet-3d";
 export const FLEET_POINTS_SOURCE_ID = "cargo-fleet-points";
 
 export const ROUTE_APPROACH_LAYER_ID = "cargo-route-approach";
+export const ROUTE_HALO_LAYER_ID = "cargo-route-halo";
 export const ROUTE_CASING_LAYER_ID = "cargo-route-casing";
 export const ROUTE_MAIN_LAYER_ID = "cargo-route-main";
-export const FLEET_3D_LAYER_ID = "cargo-fleet-3d-layer";
 export const FLEET_SPRITES_LAYER_ID = "cargo-fleet-sprites-layer";
 export const PINS_3D_STEM_LAYER_ID = "cargo-pins-3d-stems";
 export const PINS_CAP_LAYER_ID = "cargo-pins-caps";
@@ -31,19 +30,9 @@ function ensureGeoJsonSource(map: MapLibreMap, id: string): void {
   });
 }
 
-type SpriteOpacityExpr =
-  | number
-  | ["interpolate", ["linear"], ["zoom"], number, number, number, number];
-
-function spriteOpacityExpression(is3d: boolean): SpriteOpacityExpr {
-  if (!is3d) return 1;
-  return ["interpolate", ["linear"], ["zoom"], 14.3, 1, 14.8, 0];
-}
-
 /**
- * Installs all CarGo GeoJSON sources & layers (approach/trip routes, 3D vehicle
- * extrusions, low-zoom directional sprites, and 3D pickup/dropoff stems).
- * Safe to invoke repeatedly across style fallbacks and hot reloads.
+ * Installs all CarGo GeoJSON sources & layers (approach/trip routes with white
+ * contrast halo, top-down tier-distinct vehicle sprites, and 3D pickup/dropoff stems).
  */
 export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
   registerVehicleSprites(map);
@@ -51,7 +40,6 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
   ensureGeoJsonSource(map, ROUTES_SOURCE_ID);
   ensureGeoJsonSource(map, PINS_3D_SOURCE_ID);
   ensureGeoJsonSource(map, PINS_POINTS_SOURCE_ID);
-  ensureGeoJsonSource(map, FLEET_3D_SOURCE_ID);
   ensureGeoJsonSource(map, FLEET_POINTS_SOURCE_ID);
 
   if (!map.getLayer(ROUTE_APPROACH_LAYER_ID)) {
@@ -67,8 +55,26 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
       paint: {
         "line-color": "#D97706",
         "line-dasharray": [2, 2],
-        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 2.5, 16, 4],
-        "line-opacity": 0.9,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 2.5, 16, 4.2],
+        "line-opacity": 0.92,
+      },
+    });
+  }
+
+  if (!map.getLayer(ROUTE_HALO_LAYER_ID)) {
+    map.addLayer({
+      id: ROUTE_HALO_LAYER_ID,
+      type: "line",
+      source: ROUTES_SOURCE_ID,
+      filter: ["==", ["get", "kind"], "trip"],
+      layout: {
+        "line-cap": "round",
+        "line-join": "round",
+      },
+      paint: {
+        "line-color": "#FFFFFF",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 8.5, 16, 12.5],
+        "line-opacity": 0.95,
       },
     });
   }
@@ -85,7 +91,7 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
       },
       paint: {
         "line-color": "#065F46",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 5.5, 16, 8.5],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 6, 16, 9],
         "line-opacity": 0.95,
       },
     });
@@ -103,26 +109,7 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
       },
       paint: {
         "line-color": "#047857",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 3.5, 16, 6],
-      },
-    });
-  }
-
-  if (!map.getLayer(FLEET_3D_LAYER_ID)) {
-    map.addLayer({
-      id: FLEET_3D_LAYER_ID,
-      type: "fill-extrusion",
-      source: FLEET_3D_SOURCE_ID,
-      minzoom: 14.2,
-      layout: {
-        visibility: is3d ? "visible" : "none",
-      },
-      paint: {
-        "fill-extrusion-color": ["get", "color"],
-        "fill-extrusion-height": ["get", "height"],
-        "fill-extrusion-base": ["get", "base"],
-        "fill-extrusion-vertical-gradient": false,
-        "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 14.2, 0, 14.8, 0.96],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 3.8, 16, 6.2],
       },
     });
   }
@@ -139,10 +126,24 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
         "icon-pitch-alignment": "map",
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
-        "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.6, 14.5, 0.92],
+        "icon-size": [
+          "interpolate",
+          ["exponential", 1.5],
+          ["zoom"],
+          11,
+          0.36,
+          13,
+          0.56,
+          14.5,
+          0.82,
+          16,
+          1.08,
+          17.5,
+          1.38,
+        ],
       },
       paint: {
-        "icon-opacity": spriteOpacityExpression(is3d),
+        "icon-opacity": 1,
       },
     });
   }
@@ -181,14 +182,8 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
 }
 
 export function syncFleetLayerMode(map: MapLibreMap, is3d: boolean): void {
-  if (map.getLayer(FLEET_3D_LAYER_ID)) {
-    map.setLayoutProperty(FLEET_3D_LAYER_ID, "visibility", is3d ? "visible" : "none");
-  }
   if (map.getLayer(PINS_3D_STEM_LAYER_ID)) {
     map.setLayoutProperty(PINS_3D_STEM_LAYER_ID, "visibility", is3d ? "visible" : "none");
-  }
-  if (map.getLayer(FLEET_SPRITES_LAYER_ID)) {
-    map.setPaintProperty(FLEET_SPRITES_LAYER_ID, "icon-opacity", spriteOpacityExpression(is3d));
   }
 }
 

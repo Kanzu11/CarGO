@@ -96,7 +96,7 @@ export function apply3dBuildingsLayer(map: MapLibreMap, visible = true): void {
       type: "fill-extrusion",
       source: buildingRef.source,
       "source-layer": buildingRef.sourceLayer,
-      minzoom: 13.5,
+      minzoom: 12.5,
       layout: {
         visibility: visible ? "visible" : "none",
       },
@@ -106,17 +106,19 @@ export function apply3dBuildingsLayer(map: MapLibreMap, visible = true): void {
           ["linear"],
           ["coalesce", ["get", "render_height"], ["get", "height"], 8],
           0,
-          "#EEF0F2",
-          40,
-          "#E2E5E9",
+          "#E5E7EB",
+          18,
+          "#D1D5DB",
+          45,
+          "#BDC5D0",
         ],
         "fill-extrusion-height": [
           "interpolate",
           ["linear"],
           ["zoom"],
-          13.5,
+          12.5,
           0,
-          15,
+          14.2,
           ["coalesce", ["get", "render_height"], ["get", "height"], 8],
         ],
         "fill-extrusion-base": [
@@ -125,7 +127,7 @@ export function apply3dBuildingsLayer(map: MapLibreMap, visible = true): void {
           ["get", "min_height"],
           0,
         ],
-        "fill-extrusion-opacity": 0.92,
+        "fill-extrusion-opacity": 0.96,
         "fill-extrusion-vertical-gradient": false,
       },
     },
@@ -177,7 +179,7 @@ export function applyTerrainAndHillshade(map: MapLibreMap, enabled: boolean): vo
             "hillshade-shadow-color": "#111827",
             "hillshade-highlight-color": "#FFFFFF",
             "hillshade-accent-color": "#6B7280",
-            "hillshade-exaggeration": 0.12,
+            "hillshade-exaggeration": 0.2,
           },
         },
         beforeId,
@@ -186,7 +188,7 @@ export function applyTerrainAndHillshade(map: MapLibreMap, enabled: boolean): vo
       map.setLayoutProperty(HILLSHADE_LAYER_ID, "visibility", "visible");
     }
 
-    map.setTerrain({ source: TERRAIN_SOURCE_ID, exaggeration: 1.25 });
+    map.setTerrain({ source: TERRAIN_SOURCE_ID, exaggeration: 1.35 });
   } catch {
     // Silent fallback when DEM source is unavailable or WebGL context rejects terrain
   }
@@ -208,9 +210,9 @@ export function applyFlatSkyAndLight(map: MapLibreMap, is3d: boolean): void {
     });
     map.setLight({
       anchor: "map",
-      intensity: is3d ? 0.25 : 0.1,
+      intensity: is3d ? 0.42 : 0.12,
       color: "#FFFFFF",
-      position: [1.15, 210, 35],
+      position: [1.3, 200, 42],
     });
   } catch {
     // Ignore on styles or contexts that do not support sky/light mutations
