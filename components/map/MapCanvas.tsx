@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import {
   AttributionControl,
   Map as MapLibreMap,
+  setWorkerUrl,
   type ErrorEvent,
   type MapMouseEvent,
 } from "maplibre-gl";
@@ -130,6 +131,8 @@ export default function MapCanvas({
         ? CAMERA_PRESETS["dispatch-overview"]
         : CAMERA_PRESETS["rider-pickup"];
 
+    setWorkerUrl(`${window.location.origin}/maplibre-gl-worker.mjs`);
+
     const map = new MapLibreMap({
       container,
       style: OPENFREEMAP_POSITRON_STYLE,
@@ -179,7 +182,12 @@ export default function MapCanvas({
         setTerrainBlocked(true);
         return;
       }
-      if (!loadedOnce && !fallbackUsed && !msg.includes("elevation-tiles-prod")) {
+      if (
+        !loadedOnce &&
+        !fallbackUsed &&
+        !msg.includes("elevation-tiles-prod") &&
+        !msg.includes("Worker")
+      ) {
         fallbackUsed = true;
         window.clearTimeout(fallbackTimer);
         map.setStyle(CARTO_POSITRON_STYLE);
