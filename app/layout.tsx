@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { FleetProvider } from "@/components/system/FleetProvider";
 import { NetworkBanner } from "@/components/system/NetworkBanner";
 import { Toaster } from "@/components/ui/Toast";
 import "./globals.css";
@@ -47,9 +48,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={inter.variable}>
       <body>
-        <NetworkBanner />
-        {children}
-        <Toaster />
+        <FleetProvider>
+          <NetworkBanner />
+          {children}
+          <Toaster />
+        </FleetProvider>
       </body>
     </html>
   );

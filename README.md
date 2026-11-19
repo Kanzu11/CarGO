@@ -29,8 +29,8 @@ npm run dev        # http://localhost:3000
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Foundation, design system, PWA/TWA shell | ✅ Done |
-| 2 | Fleet engine, Ethiopia city data, store | ⏳ Next |
-| 3 | 3D map engine | — |
+| 2 | Fleet engine, Ethiopia city data, store | ✅ Done |
+| 3 | 3D map engine | ⏳ Next |
 | 4 | Mobile app `/` (Rider + Driver) | — |
 | 5 | Ops command center `/dispatch`, polish, release | — |
 
