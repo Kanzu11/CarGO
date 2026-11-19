@@ -1,6 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { localizeLandmarkChip } from "@/lib/i18n";
+import { useFleetStore } from "@/store/useFleetStore";
 import { LANDMARK_CHIPS, type LandmarkChip } from "@/types/fleet";
 
 export interface LandmarkChipsProps {
@@ -12,6 +14,8 @@ export interface LandmarkChipsProps {
  * Single-select quick landmark tags to pinpoint Ethiopia pickup spots without street numbers.
  */
 export function LandmarkChips({ value, onChange }: LandmarkChipsProps) {
+  const locale = useFleetStore((s) => s.locale);
+
   return (
     <div
       role="radiogroup"
@@ -34,7 +38,7 @@ export function LandmarkChips({ value, onChange }: LandmarkChipsProps) {
                 : "border-line bg-canvas text-ink hover:bg-surface",
             )}
           >
-            {chip}
+            {localizeLandmarkChip(chip, locale)}
           </button>
         );
       })}

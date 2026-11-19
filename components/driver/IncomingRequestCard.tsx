@@ -6,10 +6,16 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { StatusDot } from "@/components/ui/StatusDot";
 import { useNow } from "@/hooks/useNow";
-import { paymentMethodLabel } from "@/lib/eta";
 import { clamp } from "@/lib/geo";
+import {
+  formatEtb,
+  getStrings,
+  localizeLandmarkChip,
+  localizePayment,
+  localizePlaceName,
+} from "@/lib/i18n";
 import { useFleetStore } from "@/store/useFleetStore";
-import type { DriverJobOffer } from "@/types/fleet";
+import type { DriverJobOffer, LandmarkChip } from "@/types/fleet";
 
 export interface IncomingRequestCardProps {
   offer: DriverJobOffer;
@@ -19,21 +25,27 @@ const OFFER_WINDOW_MS = 20000;
 
 /**
  * Incoming Driver Mode dispatch offer triggered 3s after going online.
- * Shows Pickup Landmark Tag, Distance, Payment Method, Locked ETB Payout, and Accept/Decline.
  */
 export function IncomingRequestCard({ offer }: IncomingRequestCardProps) {
+  const locale = useFleetStore((s) => s.locale);
   const acceptDriverJob = useFleetStore((s) => s.acceptDriverJob);
   const declineDriverJob = useFleetStore((s) => s.declineDriverJob);
   const now = useNow(200);
 
+  const s = getStrings(locale);
   const remainingMs = now !== null ? Math.max(0, offer.expiresAt - now) : OFFER_WINDOW_MS;
   const remainingSec = Math.ceil(remainingMs / 1000);
   const pct = clamp(remainingMs / OFFER_WINDOW_MS, 0, 1) * 100;
 
+  const localizedPickupTag =
+    locale === "am"
+      ? `${localizePlaceName(offer.pickup, locale)} • ${localizeLandmarkChip(offer.pickup.tag as LandmarkChip, locale)}`
+      : offer.landmarkTag;
+
   return (
     <div
       role="region"
-      aria-label="Incoming ride request"
+      aria-label={s.newRequest}
       className="space-y-2.5 rounded-lg border border-brand bg-canvas p-3"
     >
       {/* Countdown strip */}
@@ -49,25 +61,26 @@ export function IncomingRequestCard({ offer }: IncomingRequestCardProps) {
           <div className="flex items-center gap-1.5">
             <StatusDot tone="warn" pulse size={8} />
             <span className="text-[12px] font-semibold uppercase tracking-wide text-ink">
-              New Request
+              {s.newRequest}
             </span>
             <span className="num text-[12px] text-muted">· {remainingSec}s</span>
           </div>
           <div className="mt-1 flex items-center gap-1.5">
             <Badge tone={offer.payment === "telebirr" ? "live" : "neutral"}>
-              {paymentMethodLabel(offer.payment)}
+              {localizePayment(offer.payment, locale)}
             </Badge>
             <span className="num text-[12px] text-muted">
-              {offer.pickupDistanceKm.toFixed(1)} km away · {offer.tripDistanceKm.toFixed(1)} km trip
+              {offer.pickupDistanceKm.toFixed(1)} km {s.away} · {offer.tripDistanceKm.toFixed(1)} km{" "}
+              {s.tripSuffix}
             </span>
           </div>
         </div>
 
         <div className="shrink-0 text-right">
           <p className="num text-[20px] font-semibold leading-tight text-ink">
-            {offer.payoutEtb} ETB
+            {formatEtb(offer.payoutEtb, locale)}
           </p>
-          <p className="text-[11px] text-muted">Locked payout</p>
+          <p className="text-[11px] text-muted">{s.lockedPayout}</p>
         </div>
       </div>
 
@@ -77,28 +90,30 @@ export function IncomingRequestCard({ offer }: IncomingRequestCardProps) {
           <Icon icon={MapPin} size={14} className="mt-0.5 shrink-0 text-brand" />
           <div className="min-w-0">
             <p className="text-[10px] font-medium uppercase tracking-wide text-muted">
-              Pickup Landmark
+              {s.pickupLandmark}
             </p>
-            <p className="font-semibold text-ink">{offer.landmarkTag}</p>
+            <p className="font-semibold text-ink">{localizedPickupTag}</p>
           </div>
         </div>
         <div className="flex items-start gap-2 border-t border-line pt-1.5">
           <Icon icon={Navigation} size={14} className="mt-0.5 shrink-0 text-live" />
           <div className="min-w-0">
             <p className="text-[10px] font-medium uppercase tracking-wide text-muted">
-              Dropoff
+              {s.dropoff}
             </p>
-            <p className="truncate font-medium text-ink">{offer.dropoff.name}</p>
+            <p className="truncate font-medium text-ink">
+              {localizePlaceName(offer.dropoff, locale)}
+            </p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
         <Button variant="secondary" block onClick={declineDriverJob}>
-          Decline
+          {s.decline}
         </Button>
         <Button variant="live" block onClick={acceptDriverJob}>
-          Accept
+          {s.accept}
         </Button>
       </div>
     </div>

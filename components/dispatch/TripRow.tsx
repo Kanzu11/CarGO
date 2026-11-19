@@ -4,24 +4,26 @@ import { MapPin } from "lucide-react";
 import { Badge, type Tone } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
-import { TIERS } from "@/lib/tiers";
-import type { Trip, TripPhase } from "@/types/fleet";
+import { formatEtb, getStrings, localizePlaceName, localizeTier } from "@/lib/i18n";
+import { useFleetStore } from "@/store/useFleetStore";
+import type { Locale, Trip, TripPhase } from "@/types/fleet";
 
-function phaseBadge(phase: TripPhase): { label: string; tone: Tone } {
+function phaseBadge(phase: TripPhase, locale: Locale): { label: string; tone: Tone } {
+  const s = getStrings(locale);
   switch (phase) {
     case "IN_PROGRESS":
-      return { label: "In Progress", tone: "live" };
+      return { label: s.stepEnRoute, tone: "live" };
     case "ARRIVING":
-      return { label: "Arriving", tone: "warn" };
+      return { label: s.stepPickup, tone: "warn" };
     case "DRIVER_ASSIGNED":
-      return { label: "Assigned", tone: "neutral" };
+      return { label: s.stepAssigned, tone: "neutral" };
     case "SEARCHING":
     case "REQUESTED":
-      return { label: "Searching", tone: "warn" };
+      return { label: s.stepMatch, tone: "warn" };
     case "COMPLETED":
-      return { label: "Completed", tone: "live" };
+      return { label: s.tripCompleted, tone: "live" };
     case "CANCELLED":
-      return { label: "Cancelled", tone: "danger" };
+      return { label: s.cancel, tone: "danger" };
   }
 }
 
@@ -33,7 +35,9 @@ export interface TripRowProps {
 
 /** Dense active-trip row inside the `/dispatch` fleet sidebar. */
 export function TripRow({ trip, selected, onSelect }: TripRowProps) {
-  const badge = phaseBadge(trip.phase);
+  const locale = useFleetStore((s) => s.locale);
+  const s = getStrings(locale);
+  const badge = phaseBadge(trip.phase, locale);
 
   return (
     <button
@@ -49,11 +53,11 @@ export function TripRow({ trip, selected, onSelect }: TripRowProps) {
         <div className="flex items-center gap-1.5">
           <span className="num font-mono text-[11px] font-semibold text-ink">{trip.id}</span>
           <Badge tone={badge.tone}>{badge.label}</Badge>
-          <Badge>{TIERS[trip.tier].name}</Badge>
+          <Badge>{localizeTier(trip.tier, locale).name}</Badge>
         </div>
 
         <p className="mt-1 truncate text-[12px] font-medium text-ink">
-          {trip.pickup.name} → {trip.dropoff.name}
+          {localizePlaceName(trip.pickup, locale)} → {localizePlaceName(trip.dropoff, locale)}
         </p>
 
         {trip.landmarkNote && (
@@ -65,8 +69,12 @@ export function TripRow({ trip, selected, onSelect }: TripRowProps) {
       </div>
 
       <div className="shrink-0 text-right">
-        <p className="num text-[12px] font-semibold text-ink">{trip.fareEtb} ETB</p>
-        <p className="num text-[11px] text-muted">{trip.remainingEtaMin} min</p>
+        <p className="num text-[12px] font-semibold text-ink">
+          {formatEtb(trip.fareEtb, locale)}
+        </p>
+        <p className="num text-[11px] text-muted">
+          {trip.remainingEtaMin} {s.min}
+        </p>
       </div>
     </button>
   );

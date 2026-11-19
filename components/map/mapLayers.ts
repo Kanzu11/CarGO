@@ -1,19 +1,24 @@
 import type { Feature, FeatureCollection, LineString, Point, Polygon } from "geojson";
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
-import { buildPin3dPolygon } from "@/components/map/vehicleModels";
+import { buildPin3dPolygon, localMetersToLngLat } from "@/components/map/vehicleModels";
 import { registerVehicleSprites } from "@/components/map/vehicleSprites";
-import type { LngLat, Trip } from "@/types/fleet";
+import type { LngLat, Trip, UserGeoPosition } from "@/types/fleet";
 
 export const ROUTES_SOURCE_ID = "cargo-routes";
 export const PINS_3D_SOURCE_ID = "cargo-pins-3d";
 export const PINS_POINTS_SOURCE_ID = "cargo-pins-points";
 export const FLEET_POINTS_SOURCE_ID = "cargo-fleet-points";
+export const USER_ACCURACY_SOURCE_ID = "cargo-user-accuracy";
+export const USER_DOT_SOURCE_ID = "cargo-user-dot";
 
 export const ROUTE_APPROACH_LAYER_ID = "cargo-route-approach";
 export const ROUTE_HALO_LAYER_ID = "cargo-route-halo";
 export const ROUTE_CASING_LAYER_ID = "cargo-route-casing";
 export const ROUTE_MAIN_LAYER_ID = "cargo-route-main";
 export const FLEET_SPRITES_LAYER_ID = "cargo-fleet-sprites-layer";
+export const USER_ACCURACY_LAYER_ID = "cargo-user-accuracy-layer";
+export const USER_ACCURACY_BORDER_LAYER_ID = "cargo-user-accuracy-border";
+export const USER_DOT_LAYER_ID = "cargo-user-dot-layer";
 export const PINS_3D_STEM_LAYER_ID = "cargo-pins-3d-stems";
 export const PINS_CAP_LAYER_ID = "cargo-pins-caps";
 
@@ -41,6 +46,8 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
   ensureGeoJsonSource(map, PINS_3D_SOURCE_ID);
   ensureGeoJsonSource(map, PINS_POINTS_SOURCE_ID);
   ensureGeoJsonSource(map, FLEET_POINTS_SOURCE_ID);
+  ensureGeoJsonSource(map, USER_ACCURACY_SOURCE_ID);
+  ensureGeoJsonSource(map, USER_DOT_SOURCE_ID);
 
   if (!map.getLayer(ROUTE_APPROACH_LAYER_ID)) {
     map.addLayer({
@@ -179,6 +186,45 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
       },
     });
   }
+
+  if (!map.getLayer(USER_ACCURACY_LAYER_ID)) {
+    map.addLayer({
+      id: USER_ACCURACY_LAYER_ID,
+      type: "fill",
+      source: USER_ACCURACY_SOURCE_ID,
+      paint: {
+        "fill-color": "#047857",
+        "fill-opacity": 0.12,
+      },
+    });
+  }
+
+  if (!map.getLayer(USER_ACCURACY_BORDER_LAYER_ID)) {
+    map.addLayer({
+      id: USER_ACCURACY_BORDER_LAYER_ID,
+      type: "line",
+      source: USER_ACCURACY_SOURCE_ID,
+      paint: {
+        "line-color": "#047857",
+        "line-width": 1.2,
+        "line-opacity": 0.45,
+      },
+    });
+  }
+
+  if (!map.getLayer(USER_DOT_LAYER_ID)) {
+    map.addLayer({
+      id: USER_DOT_LAYER_ID,
+      type: "circle",
+      source: USER_DOT_SOURCE_ID,
+      paint: {
+        "circle-radius": 6.5,
+        "circle-color": "#047857",
+        "circle-stroke-width": 3,
+        "circle-stroke-color": "#FFFFFF",
+      },
+    });
+  }
 }
 
 export function syncFleetLayerMode(map: MapLibreMap, is3d: boolean): void {
@@ -262,4 +308,50 @@ export function updateRoutesAndPins(map: MapLibreMap, data: RouteAndPinUpdate): 
     pins3dSource.setData({ type: "FeatureCollection", features: stemFeatures });
     pinsPointSource.setData({ type: "FeatureCollection", features: pointFeatures });
   }
+}
+
+/** Updates the live user GPS dot & accuracy ring polygon on the map. */
+export function updateUserLocationLayer(
+  map: MapLibreMap,
+  userGeo: UserGeoPosition | null,
+): void {
+  const accuracySource = map.getSource(USER_ACCURACY_SOURCE_ID) as GeoJSONSource | undefined;
+  const dotSource = map.getSource(USER_DOT_SOURCE_ID) as GeoJSONSource | undefined;
+  if (!accuracySource || !dotSource) return;
+
+  if (!userGeo) {
+    accuracySource.setData(EMPTY_FC);
+    dotSource.setData(EMPTY_FC);
+    return;
+  }
+
+  const radiusM = Math.max(12, Math.min(220, userGeo.accuracyM));
+  const ring: LngLat[] = [];
+  const sides = 24;
+  for (let i = 0; i < sides; i++) {
+    ring.push(localMetersToLngLat(userGeo.coords, radiusM, 0, (i / sides) * 360));
+  }
+  ring.push(ring[0]!);
+
+  accuracySource.setData({
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: {},
+        geometry: { type: "Polygon", coordinates: [ring] },
+      },
+    ],
+  });
+
+  dotSource.setData({
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: {},
+        geometry: { type: "Point", coordinates: userGeo.coords },
+      },
+    ],
+  });
 }

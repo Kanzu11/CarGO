@@ -1,14 +1,11 @@
 "use client";
 
 import { Banknote, Smartphone, Wallet } from "lucide-react";
+import { useMemo } from "react";
 import { Segmented, type SegmentedOption } from "@/components/ui/Segmented";
+import { localizePayment } from "@/lib/i18n";
+import { useFleetStore } from "@/store/useFleetStore";
 import type { PaymentMethod } from "@/types/fleet";
-
-const PAYMENT_OPTIONS: ReadonlyArray<SegmentedOption<PaymentMethod>> = [
-  { value: "cash", label: "Cash", icon: Banknote },
-  { value: "telebirr", label: "Telebirr", icon: Smartphone },
-  { value: "cbe_birr", label: "CBE Birr", icon: Wallet },
-];
 
 export interface PaymentToggleProps {
   value: PaymentMethod;
@@ -17,6 +14,17 @@ export interface PaymentToggleProps {
 
 /** Flat 3-way Ethiopian mobile money & cash selector. */
 export function PaymentToggle({ value, onChange }: PaymentToggleProps) {
+  const locale = useFleetStore((s) => s.locale);
+
+  const options = useMemo<ReadonlyArray<SegmentedOption<PaymentMethod>>>(
+    () => [
+      { value: "cash", label: localizePayment("cash", locale), icon: Banknote },
+      { value: "telebirr", label: localizePayment("telebirr", locale), icon: Smartphone },
+      { value: "cbe_birr", label: localizePayment("cbe_birr", locale), icon: Wallet },
+    ],
+    [locale],
+  );
+
   return (
     <Segmented<PaymentMethod>
       label="Payment method"
@@ -24,7 +32,7 @@ export function PaymentToggle({ value, onChange }: PaymentToggleProps) {
       block
       value={value}
       onChange={onChange}
-      options={PAYMENT_OPTIONS}
+      options={options}
     />
   );
 }

@@ -7,8 +7,9 @@ import { TierRow } from "@/components/rider/TierRow";
 import { Button, IconButton } from "@/components/ui/Button";
 import { estimateNearestTierEtaMin } from "@/lib/eta";
 import { quoteAllTiers } from "@/lib/fare";
+import { formatEtb, getStrings, localizePlaceName, localizeTier } from "@/lib/i18n";
 import { computeCityRoute } from "@/lib/routing";
-import { TIERS, TIER_ORDER } from "@/lib/tiers";
+import { TIER_ORDER } from "@/lib/tiers";
 import { useFleetStore } from "@/store/useFleetStore";
 
 /**
@@ -16,6 +17,7 @@ import { useFleetStore } from "@/store/useFleetStore";
  */
 export function TierStep() {
   const cityId = useFleetStore((s) => s.cityId);
+  const locale = useFleetStore((s) => s.locale);
   const pickup = useFleetStore((s) => s.pickup);
   const destination = useFleetStore((s) => s.destination);
   const vehicles = useFleetStore((s) => s.vehicles);
@@ -25,6 +27,8 @@ export function TierStep() {
   const setPaymentMethod = useFleetStore((s) => s.setPaymentMethod);
   const backToLocationStep = useFleetStore((s) => s.backToLocationStep);
   const confirmRiderBooking = useFleetStore((s) => s.confirmRiderBooking);
+
+  const s = getStrings(locale);
 
   const route = useMemo(() => {
     const destCoords = destination?.coords ?? pickup.coords;
@@ -43,6 +47,7 @@ export function TierStep() {
   }, [pickup.coords, vehicles]);
 
   const activeQuote = quotes[selectedTier];
+  const activeTierCopy = localizeTier(selectedTier, locale);
 
   return (
     <div className="space-y-3">
@@ -50,17 +55,19 @@ export function TierStep() {
       <div className="flex items-center gap-2.5 border-b border-line pb-2.5">
         <IconButton
           icon={ArrowLeft}
-          label="Edit pickup and destination"
+          label={s.editRouteLabel}
           size="sm"
           variant="secondary"
           onClick={backToLocationStep}
         />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[14px] font-semibold text-ink">
-            {pickup.name} → {destination?.name ?? "Destination"}
+            {localizePlaceName(pickup, locale)} →{" "}
+            {destination ? localizePlaceName(destination, locale) : s.destinationLabel}
           </p>
           <p className="num text-[12px] text-muted">
-            {route.distanceKm.toFixed(1)} km · ~{activeQuote.etaMinutes} min ride · Upfront fare
+            {route.distanceKm.toFixed(1)} km · ~{activeQuote.etaMinutes} {s.min} {s.rideLabel} ·{" "}
+            {s.upfrontFare}
           </p>
         </div>
       </div>
@@ -82,8 +89,8 @@ export function TierStep() {
       <PaymentToggle value={paymentMethod} onChange={setPaymentMethod} />
 
       <Button block size="lg" onClick={confirmRiderBooking}>
-        Confirm {TIERS[selectedTier].name} •{" "}
-        <span className="num">{activeQuote.fareEtb} ETB</span>
+        {s.confirmWord} {activeTierCopy.name} •{" "}
+        <span className="num">{formatEtb(activeQuote.fareEtb, locale)}</span>
       </Button>
     </div>
   );

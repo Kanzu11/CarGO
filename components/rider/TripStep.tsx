@@ -7,10 +7,16 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { StatusDot, type DotTone } from "@/components/ui/StatusDot";
 import { cn } from "@/lib/cn";
-import { driverInitials, paymentMethodLabel } from "@/lib/eta";
-import { TIERS } from "@/lib/tiers";
+import { driverInitials } from "@/lib/eta";
+import {
+  formatEtb,
+  getStrings,
+  localizePayment,
+  localizePlaceName,
+  localizeTier,
+} from "@/lib/i18n";
 import { useFleetStore } from "@/store/useFleetStore";
-import type { Trip, TripPhase } from "@/types/fleet";
+import type { Locale, Trip, TripPhase } from "@/types/fleet";
 
 interface PhaseCopy {
   title: string;
@@ -19,55 +25,51 @@ interface PhaseCopy {
   stepIndex: number;
 }
 
-function describePhase(trip: Trip): PhaseCopy {
-  const tierName = TIERS[trip.tier].name;
+function describePhase(trip: Trip, locale: Locale): PhaseCopy {
+  const s = getStrings(locale);
+  const tierName = localizeTier(trip.tier, locale).name;
+  const dropoffName = localizePlaceName(trip.dropoff, locale);
+
   switch (trip.phase) {
     case "REQUESTED":
     case "SEARCHING":
       return {
-        title: `Finding nearby ${tierName}…`,
-        subtitle: "Broadcasting landmark tag to nearby units",
+        title: `${s.findingNearby} ${tierName}…`,
+        subtitle: s.broadcastingTag,
         tone: "warn",
         stepIndex: 0,
       };
     case "DRIVER_ASSIGNED":
       return {
-        title: "Driver assigned",
-        subtitle: `${trip.driver?.name ?? tierName} is preparing to head over`,
+        title: s.driverAssigned,
+        subtitle: `${trip.driver?.name ?? tierName} ${s.preparingHeadOver}`,
         tone: "warn",
         stepIndex: 1,
       };
     case "ARRIVING":
       return {
-        title: "Driver arriving",
-        subtitle: `${trip.remainingEtaMin} min · ${trip.remainingKm.toFixed(1)} km to pickup`,
+        title: s.driverArriving,
+        subtitle: `${trip.remainingEtaMin} ${s.min} · ${trip.remainingKm.toFixed(1)} km ${s.toPickup}`,
         tone: "warn",
         stepIndex: 2,
       };
     case "IN_PROGRESS":
       return {
-        title: "Trip in progress",
-        subtitle: `${trip.remainingEtaMin} min · ${trip.remainingKm.toFixed(1)} km to ${trip.dropoff.name}`,
+        title: s.tripInProgress,
+        subtitle: `${trip.remainingEtaMin} ${s.min} · ${trip.remainingKm.toFixed(1)} km → ${dropoffName}`,
         tone: "live",
         stepIndex: 3,
       };
     case "COMPLETED":
     case "CANCELLED":
       return {
-        title: "Trip finished",
-        subtitle: trip.dropoff.name,
+        title: s.tripCompleted,
+        subtitle: dropoffName,
         tone: "live",
         stepIndex: 4,
       };
   }
 }
-
-const PROGRESS_LABELS: ReadonlyArray<{ phase: TripPhase; label: string }> = [
-  { phase: "SEARCHING", label: "Match" },
-  { phase: "DRIVER_ASSIGNED", label: "Assigned" },
-  { phase: "ARRIVING", label: "Pickup" },
-  { phase: "IN_PROGRESS", label: "En route" },
-];
 
 export interface TripStepProps {
   trip: Trip;
@@ -78,6 +80,7 @@ export interface TripStepProps {
  * SEARCHING -> DRIVER_ASSIGNED -> ARRIVING -> IN_PROGRESS -> COMPLETED.
  */
 export function TripStep({ trip }: TripStepProps) {
+  const locale = useFleetStore((s) => s.locale);
   const cancelActiveRiderTrip = useFleetStore((s) => s.cancelActiveRiderTrip);
   const completeAndResetRiderTrip = useFleetStore((s) => s.completeAndResetRiderTrip);
   const triggerRiderSos = useFleetStore((s) => s.triggerRiderSos);
@@ -86,8 +89,17 @@ export function TripStep({ trip }: TripStepProps) {
     return <TripReceipt trip={trip} onDone={completeAndResetRiderTrip} />;
   }
 
-  const info = describePhase(trip);
+  const s = getStrings(locale);
+  const info = describePhase(trip, locale);
   const canCancel = trip.phase !== "IN_PROGRESS";
+  const tierName = localizeTier(trip.tier, locale).name;
+
+  const progressLabels: ReadonlyArray<{ phase: TripPhase; label: string }> = [
+    { phase: "SEARCHING", label: s.stepMatch },
+    { phase: "DRIVER_ASSIGNED", label: s.stepAssigned },
+    { phase: "ARRIVING", label: s.stepPickup },
+    { phase: "IN_PROGRESS", label: s.stepEnRoute },
+  ];
 
   return (
     <div className="space-y-3">
@@ -102,14 +114,16 @@ export function TripStep({ trip }: TripStepProps) {
         </div>
 
         <div className="shrink-0 text-right">
-          <p className="num text-[14px] font-semibold text-ink">{trip.fareEtb} ETB</p>
-          <p className="text-[11px] text-muted">{paymentMethodLabel(trip.payment)}</p>
+          <p className="num text-[14px] font-semibold text-ink">
+            {formatEtb(trip.fareEtb, locale)}
+          </p>
+          <p className="text-[11px] text-muted">{localizePayment(trip.payment, locale)}</p>
         </div>
       </div>
 
       {/* 4-segment flat progress bar */}
       <div className="grid grid-cols-4 gap-1" aria-label="Trip progress">
-        {PROGRESS_LABELS.map((item, idx) => {
+        {progressLabels.map((item, idx) => {
           const isCurrent = idx === info.stepIndex;
           const isDone = idx < info.stepIndex;
           return (
@@ -149,9 +163,9 @@ export function TripStep({ trip }: TripStepProps) {
         })}
       </div>
 
-      {/* Driver & vehicle card (once assigned) */}
+      {/* Driver & vehicle card */}
       {trip.driver ? (
-        <div className="rounded-lg border border-line bg-surface p-2.5 space-y-2">
+        <div className="space-y-2 rounded-lg border border-line bg-surface p-2.5">
           <div className="flex items-center justify-between gap-2.5">
             <div className="flex min-w-0 items-center gap-2.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand text-[12px] font-semibold text-white">
@@ -162,7 +176,7 @@ export function TripStep({ trip }: TripStepProps) {
                 <p className="num flex items-center gap-1 text-[12px] text-muted">
                   <Icon icon={Star} size={12} className="fill-warn text-warn" />
                   <span className="font-medium text-ink">{trip.driver.rating.toFixed(2)}</span>
-                  <span>· {TIERS[trip.tier].name}</span>
+                  <span>· {tierName}</span>
                 </p>
               </div>
             </div>
@@ -180,7 +194,10 @@ export function TripStep({ trip }: TripStepProps) {
         <div className="flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2.5 text-[12px] text-muted">
           <Icon icon={MapPin} size={14} className="shrink-0 text-brand" />
           <span className="truncate">
-            Pickup: <strong className="font-medium text-ink">{trip.pickup.name}</strong>
+            {s.pickupLabel}:{" "}
+            <strong className="font-medium text-ink">
+              {localizePlaceName(trip.pickup, locale)}
+            </strong>
             {trip.landmarkNote ? ` (${trip.landmarkNote})` : ""}
           </span>
         </div>
@@ -190,15 +207,17 @@ export function TripStep({ trip }: TripStepProps) {
       <div className="flex items-center gap-2">
         {canCancel ? (
           <Button variant="secondary" className="flex-1" onClick={cancelActiveRiderTrip}>
-            Cancel Ride
+            {s.cancelRide}
           </Button>
         ) : (
-          <div className="flex flex-1 items-center rounded-lg border border-line bg-surface px-3 h-10 text-[12px] text-muted">
-            <span className="truncate">Heading to {trip.dropoff.name}</span>
+          <div className="flex h-10 flex-1 items-center rounded-lg border border-line bg-surface px-3 text-[12px] text-muted">
+            <span className="truncate">
+              {s.headingTo} {localizePlaceName(trip.dropoff, locale)}
+            </span>
           </div>
         )}
         <Button variant="danger" leadingIcon={ShieldAlert} onClick={triggerRiderSos}>
-          SOS
+          {s.sos}
         </Button>
       </div>
     </div>

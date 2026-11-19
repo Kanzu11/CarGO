@@ -6,7 +6,7 @@
    Surfaces are separated by 1px hairline borders only.
    ------------------------------------------------------------------ */
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: var(--font-inter), var(--font-ethiopic), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;
 
   --color-canvas: #ffffff;

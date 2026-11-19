@@ -7,8 +7,12 @@ import { TripTimeline } from "@/components/dispatch/TripTimeline";
 import { Badge, type Tone } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { StatusDot, type DotTone } from "@/components/ui/StatusDot";
-import { statusLabel } from "@/lib/fleetSimulator";
-import { TIERS } from "@/lib/tiers";
+import {
+  getStrings,
+  localizeLandmarkNameString,
+  localizeTier,
+  localizeVehicleStatus,
+} from "@/lib/i18n";
 import { isActiveTripPhase } from "@/lib/tripMachine";
 import { useFleetStore } from "@/store/useFleetStore";
 import type { Vehicle, VehicleStatus } from "@/types/fleet";
@@ -35,8 +39,11 @@ export interface InspectorProps {
  * 340px right-hand live Telemetry Inspector drawer opened on vehicle/trip selection.
  */
 export function Inspector({ vehicle }: InspectorProps) {
+  const locale = useFleetStore((s) => s.locale);
   const trips = useFleetStore((s) => s.trips);
   const selectVehicle = useFleetStore((s) => s.selectVehicle);
+
+  const s = getStrings(locale);
 
   const activeTrip = trips.find(
     (t) =>
@@ -64,8 +71,8 @@ export function Inspector({ vehicle }: InspectorProps) {
               <span className="num font-mono text-[14px] font-semibold text-ink">
                 {vehicle.id}
               </span>
-              <Badge>{TIERS[vehicle.tier].name}</Badge>
-              <Badge tone={tones.badge}>{statusLabel(vehicle.status)}</Badge>
+              <Badge>{localizeTier(vehicle.tier, locale).name}</Badge>
+              <Badge tone={tones.badge}>{localizeVehicleStatus(vehicle.status, locale)}</Badge>
             </div>
           </div>
 
@@ -107,9 +114,11 @@ export function Inspector({ vehicle }: InspectorProps) {
           <TripTimeline trip={activeTrip} />
         ) : (
           <div className="rounded-lg border border-line bg-surface px-3 py-2.5 text-[12px] text-muted">
-            Unit is currently idle near{" "}
-            <strong className="font-medium text-ink">{vehicle.landmark}</strong> awaiting next
-            landmark dispatch.
+            {s.idleUnitPrefix}{" "}
+            <strong className="font-medium text-ink">
+              {localizeLandmarkNameString(vehicle.landmark, locale)}
+            </strong>{" "}
+            {s.idleUnitSuffix}
           </div>
         )}
       </div>

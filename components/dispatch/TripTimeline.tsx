@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
 import { formatClockTime } from "@/lib/dispatchFilters";
-import { paymentMethodLabel } from "@/lib/eta";
+import { formatEtb, getStrings, localizePayment, localizePlaceName } from "@/lib/i18n";
+import { useFleetStore } from "@/store/useFleetStore";
 import type { Trip, TripPhase } from "@/types/fleet";
 
 interface StepSpec {
@@ -45,10 +46,11 @@ export interface TripTimelineProps {
 }
 
 /**
- * Active trip lifecycle stepper (REQUESTED -> ACCEPTED -> ARRIVING -> IN_PROGRESS -> COMPLETED)
- * with landmark note callout and ops timeline log.
+ * Active trip lifecycle stepper (REQUESTED -> ACCEPTED -> ARRIVING -> IN_PROGRESS -> COMPLETED).
  */
 export function TripTimeline({ trip }: TripTimelineProps) {
+  const locale = useFleetStore((s) => s.locale);
+  const s = getStrings(locale);
   const currentStep = stepOrder(trip.phase);
 
   return (
@@ -57,15 +59,17 @@ export function TripTimeline({ trip }: TripTimelineProps) {
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="num font-mono text-[12px] font-semibold text-ink">{trip.id}</span>
-            <Badge tone="live">{paymentMethodLabel(trip.payment)}</Badge>
+            <Badge tone="live">{localizePayment(trip.payment, locale)}</Badge>
           </div>
           <p className="mt-1 truncate text-[12px] font-medium text-ink">
-            {trip.pickup.name} → {trip.dropoff.name}
+            {localizePlaceName(trip.pickup, locale)} → {localizePlaceName(trip.dropoff, locale)}
           </p>
         </div>
 
         <div className="shrink-0 text-right">
-          <p className="num text-[14px] font-semibold text-ink">{trip.fareEtb} ETB</p>
+          <p className="num text-[14px] font-semibold text-ink">
+            {formatEtb(trip.fareEtb, locale)}
+          </p>
           <p className="num text-[11px] text-muted">{trip.distanceKm.toFixed(1)} km</p>
         </div>
       </div>
@@ -75,7 +79,7 @@ export function TripTimeline({ trip }: TripTimelineProps) {
           <Icon icon={MapPin} size={13} className="mt-0.5 shrink-0 text-brand" />
           <div className="min-w-0">
             <p className="text-[10px] font-medium uppercase tracking-wide text-muted">
-              Landmark Note
+              {s.landmarkNoteLabel}
             </p>
             <p className="text-ink">{trip.landmarkNote}</p>
           </div>

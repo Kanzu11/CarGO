@@ -5,9 +5,9 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { StatusDot } from "@/components/ui/StatusDot";
-import { paymentMethodLabel } from "@/lib/eta";
+import { formatEtb, getStrings, localizePayment, localizePlaceName } from "@/lib/i18n";
 import { useFleetStore } from "@/store/useFleetStore";
-import type { Trip } from "@/types/fleet";
+import type { Locale, Trip } from "@/types/fleet";
 
 export interface ActiveJobCardProps {
   trip: Trip;
@@ -20,7 +20,8 @@ interface ActionSpec {
   buttonVariant: "primary" | "live";
 }
 
-function resolveDriverAction(trip: Trip): ActionSpec {
+function resolveDriverAction(trip: Trip, locale: Locale): ActionSpec {
+  const s = getStrings(locale);
   const hasArrivedAtPin =
     trip.phase === "ARRIVING" &&
     (trip.progress >= 0.99 ||
@@ -28,26 +29,26 @@ function resolveDriverAction(trip: Trip): ActionSpec {
 
   if (trip.phase === "DRIVER_ASSIGNED" || (trip.phase === "ARRIVING" && !hasArrivedAtPin)) {
     return {
-      badgeText: "En route to pickup",
+      badgeText: s.enRoutePickup,
       badgeTone: "warn",
-      buttonLabel: "Arrived at Pickup",
+      buttonLabel: s.arrivedAtPickup,
       buttonVariant: "primary",
     };
   }
 
   if (trip.phase === "ARRIVING") {
     return {
-      badgeText: "At pickup landmark",
+      badgeText: s.atPickupLandmark,
       badgeTone: "warn",
-      buttonLabel: "Start Trip",
+      buttonLabel: s.startTrip,
       buttonVariant: "live",
     };
   }
 
   return {
-    badgeText: "Trip in progress",
+    badgeText: s.tripInProgress,
     badgeTone: "live",
-    buttonLabel: `Complete Trip • +${trip.fareEtb} ETB`,
+    buttonLabel: `${s.completeTrip} • +${formatEtb(trip.fareEtb, locale)}`,
     buttonVariant: "primary",
   };
 }
@@ -56,10 +57,12 @@ function resolveDriverAction(trip: Trip): ActionSpec {
  * Active Driver Mode trip execution card: Arrived at Pickup -> Start Trip -> Complete Trip.
  */
 export function ActiveJobCard({ trip }: ActiveJobCardProps) {
+  const locale = useFleetStore((s) => s.locale);
   const advanceDriverJob = useFleetStore((s) => s.advanceDriverJob);
   const cancelActiveDriverTrip = useFleetStore((s) => s.cancelActiveDriverTrip);
 
-  const spec = resolveDriverAction(trip);
+  const s = getStrings(locale);
+  const spec = resolveDriverAction(trip, locale);
 
   return (
     <div className="space-y-2.5 rounded-lg border border-line bg-canvas p-3">
@@ -67,23 +70,27 @@ export function ActiveJobCard({ trip }: ActiveJobCardProps) {
         <div className="flex items-center gap-1.5">
           <StatusDot tone={spec.badgeTone} pulse size={8} />
           <Badge tone={spec.badgeTone}>{spec.badgeText}</Badge>
-          <Badge>{paymentMethodLabel(trip.payment)}</Badge>
+          <Badge>{localizePayment(trip.payment, locale)}</Badge>
         </div>
-        <span className="num text-[15px] font-semibold text-ink">{trip.fareEtb} ETB</span>
+        <span className="num text-[15px] font-semibold text-ink">
+          {formatEtb(trip.fareEtb, locale)}
+        </span>
       </div>
 
       <div className="space-y-1.5 rounded-lg border border-line bg-surface p-2.5 text-[12px]">
         <div className="flex items-start gap-2">
           <Icon icon={MapPin} size={14} className="mt-0.5 shrink-0 text-brand" />
           <div className="min-w-0">
-            <p className="font-semibold text-ink">{trip.pickup.name}</p>
+            <p className="font-semibold text-ink">{localizePlaceName(trip.pickup, locale)}</p>
             {trip.landmarkNote && <p className="text-muted">{trip.landmarkNote}</p>}
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 border-t border-line pt-1.5">
           <div className="flex min-w-0 items-center gap-2">
             <Icon icon={Navigation} size={14} className="shrink-0 text-live" />
-            <span className="truncate font-medium text-ink">{trip.dropoff.name}</span>
+            <span className="truncate font-medium text-ink">
+              {localizePlaceName(trip.dropoff, locale)}
+            </span>
           </div>
           <span className="num shrink-0 text-muted">{trip.distanceKm.toFixed(1)} km</span>
         </div>
@@ -101,7 +108,7 @@ export function ActiveJobCard({ trip }: ActiveJobCardProps) {
         </Button>
         {trip.phase !== "IN_PROGRESS" && (
           <Button variant="secondary" size="lg" onClick={cancelActiveDriverTrip}>
-            Cancel
+            {s.cancel}
           </Button>
         )}
       </div>

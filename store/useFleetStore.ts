@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { CITIES, DEFAULT_CITY_ID, findNearestPlace } from "@/lib/cities";
+import { CITIES, DEFAULT_CITY_ID, detectNearestSupportedCity, findNearestPlace } from "@/lib/cities";
+import { haversineMeters } from "@/lib/geo";
 import { isActiveTripPhase } from "@/lib/tripMachine";
 import { toast } from "@/store/useToastStore";
 import type {
@@ -10,14 +11,18 @@ import type {
   ConnStatus,
   DriverJobOffer,
   FleetKpis,
+  GeoPermissionState,
   LandmarkChip,
   LngLat,
+  Locale,
+  LocationSource,
   PaymentMethod,
   Place,
   RiderStep,
   ServerMessage,
   Tier,
   Trip,
+  UserGeoPosition,
   Vehicle,
   VehicleTelemetryFrame,
 } from "@/types/fleet";
@@ -55,8 +60,12 @@ const INITIAL_KPIS: FleetKpis = {
 export interface FleetStoreState {
   // City & UI state
   cityId: CityId;
+  locale: Locale;
   mode: AppMode;
   map3dEnabled: boolean;
+  locationSource: LocationSource;
+  geoStatus: GeoPermissionState;
+  userGeo: UserGeoPosition | null;
   connStatus: ConnStatus;
   trafficEnabled: boolean;
   selectedVehicleId: string | null;
@@ -90,8 +99,12 @@ export interface FleetStoreState {
 
   // Actions
   setCity: (cityId: CityId) => void;
+  setLocale: (locale: Locale) => void;
   setMode: (mode: AppMode) => void;
   setMap3dEnabled: (enabled: boolean) => void;
+  setLocationSource: (source: LocationSource) => void;
+  setGeoStatus: (status: GeoPermissionState) => void;
+  applyRealLocation: (coords: LngLat, accuracyM: number, autoFocus?: boolean) => void;
   setPickup: (place: Place) => void;
   setPickupFromCoords: (coords: LngLat) => void;
   setDestination: (place: Place | null) => void;
@@ -135,8 +148,12 @@ export const useFleetStore = create<FleetStoreState>()(
   persist(
     (set, get) => ({
       cityId: DEFAULT_CITY_ID,
+      locale: "en",
       mode: "rider",
       map3dEnabled: true,
+      locationSource: "simulated",
+      geoStatus: "idle",
+      userGeo: null,
       connStatus: "connected",
       trafficEnabled: true,
       selectedVehicleId: null,
@@ -169,8 +186,14 @@ export const useFleetStore = create<FleetStoreState>()(
         if (cityId === get().cityId) return;
         const pickup = defaultPickupForCity(cityId);
         const destination = defaultDestinationForCity(cityId);
+        const userGeo = get().userGeo;
+        const nextSource: LocationSource =
+          userGeo?.isWithinCity && userGeo.nearestCityId === cityId
+            ? get().locationSource
+            : "simulated";
         set({
           cityId,
+          locationSource: nextSource,
           pickup,
           destination,
           pickingTarget: "pickup",
@@ -188,6 +211,10 @@ export const useFleetStore = create<FleetStoreState>()(
         });
       },
 
+      setLocale: (locale) => {
+        set({ locale });
+      },
+
       setMode: (mode) => {
         set({ mode });
       },
@@ -196,21 +223,134 @@ export const useFleetStore = create<FleetStoreState>()(
         set({ map3dEnabled: enabled });
       },
 
+      setGeoStatus: (geoStatus) => {
+        set({ geoStatus });
+      },
+
+      setLocationSource: (source) => {
+        const { cityId, userGeo } = get();
+        if (source === "simulated") {
+          set({
+            locationSource: "simulated",
+            pickup: defaultPickupForCity(cityId),
+            pickingTarget: "pickup",
+          });
+          return;
+        }
+        if (!userGeo) {
+          set({ locationSource: "real" });
+          return;
+        }
+        if (userGeo.isWithinCity && userGeo.nearestCityId !== cityId) {
+          const targetCity = userGeo.nearestCityId;
+          transportSendRef?.({ type: "city.switch", cityId: targetCity });
+          set({
+            cityId: targetCity,
+            destination: defaultDestinationForCity(targetCity),
+          });
+        }
+        const activeCity = userGeo.isWithinCity ? userGeo.nearestCityId : cityId;
+        const nearest = findNearestPlace(activeCity, userGeo.coords);
+        const label = userGeo.isWithinCity
+          ? nearest.distanceMeters <= 120
+            ? `GPS • ${nearest.place.name}`
+            : `GPS • Near ${nearest.place.name} (${nearest.distanceMeters}m)`
+          : `GPS • ${userGeo.coords[1].toFixed(4)}, ${userGeo.coords[0].toFixed(4)}`;
+
+        set({
+          locationSource: "real",
+          pickup: {
+            id: `gps-pickup-${Date.now()}`,
+            name: label,
+            neighborhood: userGeo.isWithinCity ? nearest.place.neighborhood : "Live GPS",
+            tag: nearest.place.tag,
+            coords: userGeo.coords,
+            kind: "custom",
+          },
+          pickingTarget: "pickup",
+        });
+      },
+
+      applyRealLocation: (coords, accuracyM, autoFocus = false) => {
+        const detected = detectNearestSupportedCity(coords);
+        const userGeo: UserGeoPosition = {
+          coords,
+          accuracyM: Math.round(accuracyM),
+          updatedAt: Date.now(),
+          nearestCityId: detected.cityId,
+          isWithinCity: detected.isWithinCity,
+        };
+
+        const prevSource = get().locationSource;
+        const shouldActivateReal =
+          autoFocus && (detected.isWithinCity || prevSource === "real");
+
+        set({ userGeo, geoStatus: "granted" });
+
+        if (!shouldActivateReal && prevSource !== "real") {
+          return;
+        }
+
+        const targetCity = detected.isWithinCity ? detected.cityId : get().cityId;
+        if (detected.isWithinCity && targetCity !== get().cityId) {
+          transportSendRef?.({ type: "city.switch", cityId: targetCity });
+          set({
+            cityId: targetCity,
+            destination: defaultDestinationForCity(targetCity),
+            activeRiderTripId: null,
+            persistedRiderTrip: null,
+          });
+        }
+
+        const nearest = findNearestPlace(targetCity, coords);
+        const label = detected.isWithinCity
+          ? nearest.distanceMeters <= 120
+            ? `GPS • ${nearest.place.name}`
+            : `GPS • Near ${nearest.place.name} (${nearest.distanceMeters}m)`
+          : `GPS • ${coords[1].toFixed(4)}, ${coords[0].toFixed(4)}`;
+
+        // Only overwrite pickup if still choosing location
+        if (get().riderStep === "location") {
+          set({
+            locationSource: "real",
+            pickup: {
+              id: `gps-pickup-${Date.now()}`,
+              name: label,
+              neighborhood: detected.isWithinCity ? nearest.place.neighborhood : "Live GPS",
+              tag: nearest.place.tag,
+              coords,
+              kind: "custom",
+            },
+          });
+        } else {
+          set({ locationSource: "real" });
+        }
+      },
+
       setPickup: (place) => {
         set({
+          locationSource: "simulated",
           pickup: place,
           landmarkChip: (place.tag as LandmarkChip) ?? get().landmarkChip,
         });
       },
 
       setPickupFromCoords: (coords) => {
-        const { cityId } = get();
+        const { cityId, locationSource, userGeo } = get();
+        if (
+          locationSource === "real" &&
+          userGeo &&
+          haversineMeters(coords, userGeo.coords) <= 60
+        ) {
+          return;
+        }
         const nearest = findNearestPlace(cityId, coords);
         const label =
           nearest.distanceMeters <= 120
             ? nearest.place.name
             : `Near ${nearest.place.name} (${nearest.distanceMeters}m)`;
         set({
+          locationSource: "simulated",
           pickup: {
             id: `custom-pickup-${Date.now()}`,
             name: label,
@@ -595,6 +735,7 @@ export const useFleetStore = create<FleetStoreState>()(
       skipHydration: true,
       partialize: (state) => ({
         cityId: state.cityId,
+        locale: state.locale,
         mode: state.mode,
         map3dEnabled: state.map3dEnabled,
         pickup: state.pickup,

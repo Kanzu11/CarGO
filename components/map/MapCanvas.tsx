@@ -16,10 +16,12 @@ import {
   apply3dBuildingsLayer,
   applyCameraMode,
   applyFlatSkyAndLight,
+  applyMapLanguage,
   applyTerrainAndHillshade,
   CAMERA_PRESETS,
   CARTO_POSITRON_STYLE,
   OPENFREEMAP_POSITRON_STYLE,
+  rewriteCartoGlyphUrl,
   setBuildingsVisibility,
   TERRAIN_SOURCE_ID,
 } from "@/components/map/map3d";
@@ -28,12 +30,14 @@ import {
   FLEET_SPRITES_LAYER_ID,
   syncFleetLayerMode,
   updateRoutesAndPins,
+  updateUserLocationLayer,
 } from "@/components/map/mapLayers";
 import { useAnimatedFleetLayer } from "@/components/map/useAnimatedFleetLayer";
 import { useFollowCamera } from "@/components/map/useFollowCamera";
 import { usePerfTier } from "@/components/map/usePerfTier";
 import { cn } from "@/lib/cn";
 import { CITIES } from "@/lib/cities";
+import { getStrings, localizeCityName } from "@/lib/i18n";
 import { isActiveTripPhase } from "@/lib/tripMachine";
 import { useFleetStore } from "@/store/useFleetStore";
 import type { LngLat } from "@/types/fleet";
@@ -82,6 +86,9 @@ export default function MapCanvas({
   const [mapReady, setMapReady] = useState(false);
 
   const cityId = useFleetStore((s) => s.cityId);
+  const locale = useFleetStore((s) => s.locale);
+  const locationSource = useFleetStore((s) => s.locationSource);
+  const userGeo = useFleetStore((s) => s.userGeo);
   const map3dEnabled = useFleetStore((s) => s.map3dEnabled);
   const setMap3dEnabled = useFleetStore((s) => s.setMap3dEnabled);
   const trips = useFleetStore((s) => s.trips);
@@ -103,6 +110,7 @@ export default function MapCanvas({
     map3dEnabled,
     perfTier,
     terrainBlocked,
+    locale,
     showCrosshair,
     onMapClick,
     onVehicleClick,
@@ -114,6 +122,7 @@ export default function MapCanvas({
       map3dEnabled,
       perfTier,
       terrainBlocked,
+      locale,
       showCrosshair,
       onMapClick,
       onVehicleClick,
@@ -146,6 +155,9 @@ export default function MapCanvas({
       bearing: initial3d ? initialCity.bearing : 0,
       maxPitch: 68,
       attributionControl: false,
+      transformRequest: (url, resourceType) => ({
+        url: resourceType === "Glyphs" ? rewriteCartoGlyphUrl(url) : url,
+      }),
     });
 
     mapRef.current = map;
@@ -159,14 +171,21 @@ export default function MapCanvas({
         fallbackUsed = true;
         map.setStyle(CARTO_POSITRON_STYLE);
       }
-    }, 6000);
+    }, 9000);
 
     const setupStyle = () => {
-      const { map3dEnabled: is3d, perfTier: tier, terrainBlocked: blocked } = latestRef.current;
+      const {
+        map3dEnabled: is3d,
+        perfTier: tier,
+        terrainBlocked: blocked,
+        locale: currentLocale,
+      } = latestRef.current;
       apply3dBuildingsLayer(map, is3d);
       applyFlatSkyAndLight(map, is3d);
       applyTerrainAndHillshade(map, is3d && tier === "full" && !blocked);
       ensureCargoLayers(map, is3d);
+      applyMapLanguage(map, currentLocale);
+      updateUserLocationLayer(map, useFleetStore.getState().userGeo);
       setMapInstance(map);
       setMapReady(true);
     };
@@ -290,6 +309,41 @@ export default function MapCanvas({
     applyCameraMode(map, map3dEnabled, preset.pitch, city.bearing);
   }, [mapReady, map3dEnabled, perfTier, terrainBlocked, cityId, variant]);
 
+  // Sync basemap labels to active English / Amharic locale
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    applyMapLanguage(map, locale);
+  }, [mapReady, locale]);
+
+  // Sync live user GPS accuracy ring & dot + fly to exact GPS when switching into Real GPS mode
+  const lastGpsCenteredSourceRef = useRef(locationSource);
+  const centeredFirstGpsRef = useRef(false);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    updateUserLocationLayer(map, userGeo);
+
+    const switchedToReal =
+      locationSource === "real" && lastGpsCenteredSourceRef.current !== "real";
+    lastGpsCenteredSourceRef.current = locationSource;
+
+    if (variant === "mobile" && locationSource === "real" && userGeo) {
+      if (switchedToReal || !centeredFirstGpsRef.current) {
+        centeredFirstGpsRef.current = true;
+        map.flyTo({
+          center: userGeo.coords,
+          zoom: 16.4,
+          pitch: map3dEnabled ? CAMERA_PRESETS["rider-pickup"].pitch : 0,
+          bearing: map3dEnabled ? CITIES[cityId].bearing : 0,
+          duration: 900,
+          essential: true,
+        });
+      }
+    }
+  }, [mapReady, userGeo, locationSource, variant, map3dEnabled, cityId]);
+
   // Sync city switches smoothly via flyTo
   useEffect(() => {
     const map = mapRef.current;
@@ -301,15 +355,21 @@ export default function MapCanvas({
         ? CAMERA_PRESETS["dispatch-overview"]
         : CAMERA_PRESETS["rider-pickup"];
 
+    const useGpsCenter =
+      variant === "mobile" &&
+      locationSource === "real" &&
+      userGeo?.isWithinCity &&
+      userGeo.nearestCityId === cityId;
+
     map.flyTo({
-      center: city.center,
-      zoom: variant === "dispatch" ? city.zoom - 0.5 : city.zoom + 0.5,
+      center: useGpsCenter ? userGeo.coords : city.center,
+      zoom: useGpsCenter ? 16.4 : variant === "dispatch" ? city.zoom - 0.5 : city.zoom + 0.5,
       pitch: map3dEnabled ? preset.pitch : 0,
       bearing: map3dEnabled ? city.bearing : 0,
       duration: 1100,
       essential: true,
     });
-  }, [cityId, mapReady, map3dEnabled, variant]);
+  }, [cityId, mapReady, map3dEnabled, variant, locationSource, userGeo]);
 
   // Sync MapLibre padding so optical center respects sheets/drawers
   useEffect(() => {
@@ -447,6 +507,17 @@ export default function MapCanvas({
       }
     }
 
+    if (variant === "mobile" && locationSource === "real" && userGeo) {
+      map.flyTo({
+        center: userGeo.coords,
+        zoom: 16.4,
+        pitch: map3dEnabled ? preset.pitch : 0,
+        bearing: map3dEnabled ? city.bearing : 0,
+        duration: 750,
+      });
+      return;
+    }
+
     map.flyTo({
       center: city.center,
       zoom: variant === "dispatch" ? city.zoom - 0.5 : city.zoom + 0.5,
@@ -454,7 +525,7 @@ export default function MapCanvas({
       bearing: map3dEnabled ? city.bearing : 0,
       duration: 750,
     });
-  }, [cityId, followVehicleId, map3dEnabled, resetManualOverride, variant]);
+  }, [cityId, followVehicleId, locationSource, map3dEnabled, resetManualOverride, userGeo, variant]);
 
   const handleZoomIn = useCallback(() => {
     mapRef.current?.zoomIn({ duration: 220 });
@@ -464,12 +535,14 @@ export default function MapCanvas({
     mapRef.current?.zoomOut({ duration: 220 });
   }, []);
 
+  const s = getStrings(locale);
+
   return (
     <div className={cn("relative h-full w-full overflow-hidden bg-surface", className)}>
       <div
         ref={containerRef}
         className="h-full w-full"
-        aria-label={`${CITIES[cityId].name} live 3D dispatch map`}
+        aria-label={`${localizeCityName(cityId, locale)} 3D`}
       />
 
       {!mapReady && (
@@ -478,7 +551,7 @@ export default function MapCanvas({
           className="pointer-events-none absolute inset-0 flex items-center justify-center bg-surface"
         >
           <span className="rounded-lg border border-line bg-canvas px-3 py-1.5 text-[12px] font-medium text-muted">
-            Loading {CITIES[cityId].name} 3D map…
+            {localizeCityName(cityId, locale)} · {s.loadingMap}
           </span>
         </div>
       )}

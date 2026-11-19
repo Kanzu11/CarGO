@@ -2,21 +2,19 @@
 
 import Link from "next/link";
 import { PanelLeftClose, PanelLeftOpen, Smartphone } from "lucide-react";
+import { useMemo } from "react";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { KpiStrip } from "@/components/dispatch/KpiStrip";
 import { HydrationGate } from "@/components/system/HydrationGate";
 import { Icon } from "@/components/ui/Icon";
+import { LocaleToggle } from "@/components/ui/LocaleToggle";
 import { Select } from "@/components/ui/Select";
 import { StatusDot, type DotTone } from "@/components/ui/StatusDot";
 import { Switch } from "@/components/ui/Switch";
-import { CITIES, CITY_ORDER } from "@/lib/cities";
+import { CITY_ORDER } from "@/lib/cities";
+import { getStrings, localizeCityName } from "@/lib/i18n";
 import { useFleetStore } from "@/store/useFleetStore";
 import type { CityId, ConnStatus } from "@/types/fleet";
-
-const CITY_OPTIONS = CITY_ORDER.map((id) => ({
-  value: id,
-  label: CITIES[id].name,
-}));
 
 function wsTone(status: ConnStatus): DotTone {
   switch (status) {
@@ -31,16 +29,28 @@ function wsTone(status: ConnStatus): DotTone {
 
 /**
  * 48px Ops Command Center header with city switcher, KPI strip, Simulate Traffic toggle,
- * WebSocket status dot, and Mobile App link back to `/`.
+ * WebSocket status dot, EN/አማ language toggle, and Mobile App link back to `/`.
  */
 export function OpsTopBar() {
   const cityId = useFleetStore((s) => s.cityId);
   const setCity = useFleetStore((s) => s.setCity);
+  const locale = useFleetStore((s) => s.locale);
   const trafficEnabled = useFleetStore((s) => s.trafficEnabled);
   const setTrafficEnabled = useFleetStore((s) => s.setTrafficEnabled);
   const connStatus = useFleetStore((s) => s.connStatus);
   const sidebarCollapsed = useFleetStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useFleetStore((s) => s.setSidebarCollapsed);
+
+  const s = getStrings(locale);
+
+  const cityOptions = useMemo(
+    () =>
+      CITY_ORDER.map((id) => ({
+        value: id,
+        label: localizeCityName(id, locale),
+      })),
+    [locale],
+  );
 
   return (
     <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-line bg-canvas px-3">
@@ -50,13 +60,14 @@ export function OpsTopBar() {
           type="button"
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           aria-label={sidebarCollapsed ? "Expand fleet sidebar" : "Collapse fleet sidebar"}
-          title={sidebarCollapsed ? "Show fleet sidebar" : "Hide fleet sidebar"}
           className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-canvas text-ink hover:bg-surface"
         >
           <Icon icon={sidebarCollapsed ? PanelLeftOpen : PanelLeftClose} size={15} />
         </button>
 
-        <Wordmark suffix="Ops" />
+        <HydrationGate fallback={<Wordmark suffix="Ops" />}>
+          <Wordmark suffix={s.opsSuffix} />
+        </HydrationGate>
 
         <HydrationGate
           fallback={
@@ -70,8 +81,8 @@ export function OpsTopBar() {
             size="sm"
             value={cityId}
             onChange={setCity}
-            options={CITY_OPTIONS}
-            className="w-[122px] sm:w-[132px]"
+            options={cityOptions}
+            className="w-[116px] sm:w-[132px]"
           />
         </HydrationGate>
       </div>
@@ -81,8 +92,8 @@ export function OpsTopBar() {
         <KpiStrip />
       </div>
 
-      {/* Right: Simulate Traffic toggle, WS dot, Mobile App link */}
-      <div className="flex shrink-0 items-center gap-3">
+      {/* Right: Simulate Traffic toggle, WS dot, LocaleToggle, Mobile App link */}
+      <div className="flex shrink-0 items-center gap-2">
         <HydrationGate fallback={null}>
           <div className="hidden sm:flex items-center">
             <Switch
@@ -90,7 +101,7 @@ export function OpsTopBar() {
               tone="live"
               checked={trafficEnabled}
               onChange={setTrafficEnabled}
-              label="Simulate Traffic"
+              label={s.simulateTraffic}
             />
           </div>
         </HydrationGate>
@@ -103,13 +114,15 @@ export function OpsTopBar() {
           <span>WS</span>
         </span>
 
+        <LocaleToggle />
+
         <Link
           href="/"
           className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-canvas px-2.5 text-[13px] font-medium text-ink hover:bg-surface"
         >
           <Icon icon={Smartphone} size={14} />
-          <span className="hidden sm:inline">Mobile App →</span>
-          <span className="sm:hidden">App →</span>
+          <span className="hidden sm:inline">{s.mobileApp}</span>
+          <span className="sm:hidden">{s.mobileAppShort}</span>
         </Link>
       </div>
     </header>

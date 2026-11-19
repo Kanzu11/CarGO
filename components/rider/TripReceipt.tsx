@@ -6,8 +6,14 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
-import { paymentMethodLabel } from "@/lib/eta";
-import { TIERS } from "@/lib/tiers";
+import {
+  formatEtb,
+  getStrings,
+  localizePayment,
+  localizePlaceName,
+  localizeTier,
+} from "@/lib/i18n";
+import { useFleetStore } from "@/store/useFleetStore";
 import type { Trip } from "@/types/fleet";
 
 export interface TripReceiptProps {
@@ -20,6 +26,8 @@ export interface TripReceiptProps {
  */
 export function TripReceipt({ trip, onDone }: TripReceiptProps) {
   const [rating, setRating] = useState(5);
+  const locale = useFleetStore((s) => s.locale);
+  const s = getStrings(locale);
 
   return (
     <div className="space-y-3">
@@ -27,27 +35,31 @@ export function TripReceipt({ trip, onDone }: TripReceiptProps) {
         <div className="flex items-center gap-2">
           <Icon icon={CheckCircle2} size={18} className="shrink-0 text-live" />
           <div>
-            <p className="text-[15px] font-semibold text-ink">Trip completed</p>
+            <p className="text-[15px] font-semibold text-ink">{s.tripCompleted}</p>
             <p className="text-[12px] text-muted">
-              {TIERS[trip.tier].name} · <span className="num">{trip.distanceKm.toFixed(1)} km</span>
+              {localizeTier(trip.tier, locale).name} ·{" "}
+              <span className="num">{trip.distanceKm.toFixed(1)} km</span>
             </p>
           </div>
         </div>
         <div className="text-right">
-          <p className="num text-[18px] font-semibold text-ink">{trip.fareEtb} ETB</p>
-          <Badge tone="live">{paymentMethodLabel(trip.payment)}</Badge>
+          <p className="num text-[18px] font-semibold text-ink">
+            {formatEtb(trip.fareEtb, locale)}
+          </p>
+          <Badge tone="live">{localizePayment(trip.payment, locale)}</Badge>
         </div>
       </div>
 
       <div className="rounded-lg border border-line bg-surface p-2.5 text-[12px]">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate font-medium text-ink">
-            {trip.pickup.name} → {trip.dropoff.name}
+            {localizePlaceName(trip.pickup, locale)} →{" "}
+            {localizePlaceName(trip.dropoff, locale)}
           </span>
         </div>
         {trip.driver && (
           <p className="mt-1 text-muted">
-            Driver: <span className="font-medium text-ink">{trip.driver.name}</span>
+            {s.driverLabel}: <span className="font-medium text-ink">{trip.driver.name}</span>
             {trip.plate ? (
               <>
                 {" · "}
@@ -59,8 +71,8 @@ export function TripReceipt({ trip, onDone }: TripReceiptProps) {
       </div>
 
       <div className="flex items-center justify-between rounded-lg border border-line bg-canvas px-3 py-2">
-        <span className="text-[13px] font-medium text-ink">Rate your driver</span>
-        <div className="flex items-center gap-1" role="radiogroup" aria-label="Driver rating">
+        <span className="text-[13px] font-medium text-ink">{s.rateDriver}</span>
+        <div className="flex items-center gap-1" role="radiogroup" aria-label={s.rateDriver}>
           {[1, 2, 3, 4, 5].map((star) => {
             const active = star <= rating;
             return (
@@ -69,16 +81,14 @@ export function TripReceipt({ trip, onDone }: TripReceiptProps) {
                 type="button"
                 role="radio"
                 aria-checked={rating === star}
-                aria-label={`${star} star${star === 1 ? "" : "s"}`}
+                aria-label={`${star}`}
                 onClick={() => setRating(star)}
                 className="flex h-8 w-8 items-center justify-center rounded-[6px] hover:bg-surface"
               >
                 <Icon
                   icon={Star}
                   size={17}
-                  className={cn(
-                    active ? "fill-warn text-warn" : "text-line-strong",
-                  )}
+                  className={cn(active ? "fill-warn text-warn" : "text-line-strong")}
                 />
               </button>
             );
@@ -87,7 +97,7 @@ export function TripReceipt({ trip, onDone }: TripReceiptProps) {
       </div>
 
       <Button block size="lg" onClick={() => onDone(rating)}>
-        Done
+        {s.done}
       </Button>
     </div>
   );

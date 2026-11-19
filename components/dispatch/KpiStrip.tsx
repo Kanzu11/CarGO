@@ -3,6 +3,7 @@
 import { HydrationGate } from "@/components/system/HydrationGate";
 import { StatusDot } from "@/components/ui/StatusDot";
 import { cn } from "@/lib/cn";
+import { formatEtb, getStrings } from "@/lib/i18n";
 import { useFleetStore } from "@/store/useFleetStore";
 
 export interface KpiStripProps {
@@ -15,6 +16,8 @@ export interface KpiStripProps {
  */
 export function KpiStrip({ compact = false, className }: KpiStripProps) {
   const kpis = useFleetStore((s) => s.kpis);
+  const locale = useFleetStore((s) => s.locale);
+  const s = getStrings(locale);
 
   return (
     <HydrationGate
@@ -25,7 +28,7 @@ export function KpiStrip({ compact = false, className }: KpiStripProps) {
             className,
           )}
         >
-          Loading telemetry…
+          {s.loadingTelemetry}
         </div>
       }
     >
@@ -39,28 +42,28 @@ export function KpiStrip({ compact = false, className }: KpiStripProps) {
       >
         <div className="flex items-center gap-1.5 px-2.5">
           <StatusDot tone="live" size={6} />
-          <span className="text-[11px] text-muted">Active Fleet</span>
+          <span className="text-[11px] text-muted">{s.activeFleet}</span>
           <span className="num text-[12px] font-semibold text-ink">
             {kpis.activeFleet}/{kpis.totalFleet}
           </span>
         </div>
 
         <div className="flex items-center gap-1.5 px-2.5">
-          <span className="text-[11px] text-muted">Trips in Progress</span>
+          <span className="text-[11px] text-muted">{s.tripsInProgress}</span>
           <span className="num text-[12px] font-semibold text-ink">{kpis.tripsInProgress}</span>
         </div>
 
         <div className="flex items-center gap-1.5 px-2.5">
-          <span className="text-[11px] text-muted">Avg Dispatch</span>
+          <span className="text-[11px] text-muted">{s.avgDispatch}</span>
           <span className="num text-[12px] font-semibold text-ink">
             {kpis.avgDispatchSec.toFixed(1)}s
           </span>
         </div>
 
         <div className="flex items-center gap-1.5 px-2.5">
-          <span className="text-[11px] text-muted">Live Volume</span>
+          <span className="text-[11px] text-muted">{s.liveVolume}</span>
           <span className="num text-[12px] font-semibold text-live">
-            {kpis.liveVolumeEtb.toLocaleString()} ETB
+            {formatEtb(kpis.liveVolumeEtb, locale)}
           </span>
         </div>
       </div>

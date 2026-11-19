@@ -8,6 +8,7 @@ import { OpsTopBar } from "@/components/dispatch/OpsTopBar";
 import { ClientMap } from "@/components/map/ClientMap";
 import { HydrationGate } from "@/components/system/HydrationGate";
 import { Switch } from "@/components/ui/Switch";
+import { getStrings } from "@/lib/i18n";
 import { useFleetStore } from "@/store/useFleetStore";
 
 /**
@@ -15,12 +16,15 @@ import { useFleetStore } from "@/store/useFleetStore";
  * Shares the exact same Zustand fleet store & simulator as `/`.
  */
 export function OpsShell() {
+  const locale = useFleetStore((s) => s.locale);
   const vehicles = useFleetStore((s) => s.vehicles);
   const selectedVehicleId = useFleetStore((s) => s.selectedVehicleId);
   const selectVehicle = useFleetStore((s) => s.selectVehicle);
   const sidebarCollapsed = useFleetStore((s) => s.sidebarCollapsed);
   const trafficEnabled = useFleetStore((s) => s.trafficEnabled);
   const setTrafficEnabled = useFleetStore((s) => s.setTrafficEnabled);
+
+  const s = getStrings(locale);
 
   const selectedVehicle = useMemo(
     () => (selectedVehicleId ? vehicles.find((v) => v.id === selectedVehicleId) : undefined),
@@ -43,7 +47,7 @@ export function OpsShell() {
               tone="live"
               checked={trafficEnabled}
               onChange={setTrafficEnabled}
-              label="Traffic"
+              label={s.trafficShort}
             />
           </div>
         </HydrationGate>

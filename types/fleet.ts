@@ -1,5 +1,19 @@
 export type CityId = "adama" | "addis" | "hawassa" | "worabe";
 
+export type Locale = "en" | "am";
+
+export type LocationSource = "real" | "simulated";
+
+export type GeoPermissionState = "idle" | "requesting" | "granted" | "denied" | "unavailable";
+
+export interface UserGeoPosition {
+  coords: LngLat;
+  accuracyM: number;
+  updatedAt: number;
+  nearestCityId: CityId;
+  isWithinCity: boolean;
+}
+
 export type Tier = "bajaj" | "economy" | "minivan" | "cargo";
 
 export type VehicleStatus = "idle" | "enroute_pickup" | "on_trip" | "offline" | "alert";

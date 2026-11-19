@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Noto_Sans_Ethiopic } from "next/font/google";
 import { FleetProvider } from "@/components/system/FleetProvider";
 import { NetworkBanner } from "@/components/system/NetworkBanner";
 import { Toaster } from "@/components/ui/Toast";
@@ -8,6 +8,13 @@ import "./globals.css";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+const notoEthiopic = Noto_Sans_Ethiopic({
+  subsets: ["ethiopic"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-ethiopic",
   display: "swap",
 });
 
@@ -46,7 +53,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${notoEthiopic.variable}`}>
       <body>
         <FleetProvider>
           <NetworkBanner />

@@ -1,21 +1,38 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, LocateFixed, Sparkles } from "lucide-react";
+import { useMemo } from "react";
 import { DestinationPresets } from "@/components/rider/DestinationPresets";
 import { LandmarkChips } from "@/components/rider/LandmarkChips";
 import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
+import { cn } from "@/lib/cn";
 import { lockedFare } from "@/lib/fare";
+import {
+  formatEtb,
+  getStrings,
+  localizeLandmarkChip,
+  localizePlaceName,
+} from "@/lib/i18n";
 import { computeCityRoute } from "@/lib/routing";
 import { useFleetStore } from "@/store/useFleetStore";
-import { useMemo } from "react";
+
+export interface LocationStepProps {
+  onRequestGps: () => void;
+}
 
 /**
- * Rider Step 1 — Landmark-first Pickup & Destination selection.
- * Solves Ethiopia's lack of street numbers with crosshair landmark resolution,
- * quick landmark chips, and a custom gate/color note.
+ * Rider Step 1 — Landmark-first Pickup & Destination selection with
+ * Real GPS (`GPS`) and Simulated (`Sim`) dual location toggle.
  */
-export function LocationStep() {
+export function LocationStep({ onRequestGps }: LocationStepProps) {
   const cityId = useFleetStore((s) => s.cityId);
+  const locale = useFleetStore((s) => s.locale);
+  const locationSource = useFleetStore((s) => s.locationSource);
+  const setLocationSource = useFleetStore((s) => s.setLocationSource);
+  const geoStatus = useFleetStore((s) => s.geoStatus);
+  const userGeo = useFleetStore((s) => s.userGeo);
+
   const pickup = useFleetStore((s) => s.pickup);
   const destination = useFleetStore((s) => s.destination);
   const pickingTarget = useFleetStore((s) => s.pickingTarget);
@@ -27,6 +44,8 @@ export function LocationStep() {
   const setCustomLandmarkNote = useFleetStore((s) => s.setCustomLandmarkNote);
   const proceedToTierStep = useFleetStore((s) => s.proceedToTierStep);
 
+  const s = getStrings(locale);
+
   const routeSummary = useMemo(() => {
     if (!destination) return null;
     const res = computeCityRoute(cityId, pickup.coords, destination.coords);
@@ -36,38 +55,90 @@ export function LocationStep() {
     };
   }, [cityId, pickup.coords, destination]);
 
+  const handleSelectGps = () => {
+    if (userGeo) {
+      setLocationSource("real");
+    }
+    onRequestGps();
+  };
+
   return (
     <div className="space-y-3">
       {/* Pickup block */}
       <div className="rounded-lg border border-line bg-surface p-2.5">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="h-2.5 w-2.5 shrink-0 rounded-full border-2 border-brand bg-canvas" />
+            <span
+              className={cn(
+                "h-2.5 w-2.5 shrink-0 rounded-full border-2 bg-canvas",
+                locationSource === "real" ? "border-live" : "border-brand",
+              )}
+            />
             <div className="min-w-0">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-                Pickup · {landmarkChip}
+              <div className="flex items-center gap-1.5">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                  {s.pickupLabel} · {localizeLandmarkChip(landmarkChip, locale)}
+                </p>
+                {locationSource === "real" && userGeo && (
+                  <span className="num rounded bg-live-soft px-1 py-px text-[10px] font-semibold text-live">
+                    ±{userGeo.accuracyM}m
+                  </span>
+                )}
+              </div>
+              <p className="truncate text-[14px] font-semibold text-ink">
+                {localizePlaceName(pickup, locale)}
               </p>
-              <p className="truncate text-[14px] font-semibold text-ink">{pickup.name}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setPickingTarget("pickup")}
-            className="shrink-0 rounded-[6px] border border-line bg-canvas px-2 py-1 text-[11px] font-medium text-muted hover:text-ink"
+
+          {/* Real GPS | Simulated toggle pill */}
+          <div
+            role="group"
+            aria-label="Location source"
+            className="inline-flex h-7 shrink-0 items-center rounded-lg border border-line bg-canvas p-0.5"
           >
-            Move pin
-          </button>
+            <button
+              type="button"
+              onClick={handleSelectGps}
+              aria-pressed={locationSource === "real"}
+              title={geoStatus === "requesting" ? s.locating : s.liveGpsBadge}
+              className={cn(
+                "inline-flex h-6 items-center gap-1 rounded-[6px] px-2 text-[11px] font-medium transition-colors",
+                locationSource === "real"
+                  ? "bg-live text-white"
+                  : "text-muted hover:text-ink",
+              )}
+            >
+              <Icon icon={LocateFixed} size={11} />
+              <span>{geoStatus === "requesting" ? "…" : s.gpsLabel}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocationSource("simulated")}
+              aria-pressed={locationSource === "simulated"}
+              title={s.simulatedBadge}
+              className={cn(
+                "inline-flex h-6 items-center gap-1 rounded-[6px] px-2 text-[11px] font-medium transition-colors",
+                locationSource === "simulated"
+                  ? "bg-brand text-white"
+                  : "text-muted hover:text-ink",
+              )}
+            >
+              <Icon icon={Sparkles} size={11} />
+              <span>{s.simLabel}</span>
+            </button>
+          </div>
         </div>
 
         <div className="mt-2.5 space-y-2">
           <LandmarkChips value={landmarkChip} onChange={setLandmarkChip} />
           <input
             type="text"
-            aria-label="Custom pickup landmark note"
+            aria-label={s.landmarkNoteLabel}
             value={customLandmarkNote}
             onChange={(e) => setCustomLandmarkNote(e.target.value)}
             maxLength={60}
-            placeholder="Landmark note (e.g. In front of blue gate)"
+            placeholder={s.landmarkPlaceholder}
             className="h-9 w-full rounded-lg border border-line bg-canvas px-2.5 text-[13px] text-ink placeholder:text-muted focus:border-brand focus:outline-none"
           />
         </div>
@@ -80,10 +151,10 @@ export function LocationStep() {
             <span className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-live" />
             <div className="min-w-0">
               <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-                Destination
+                {s.destinationLabel}
               </p>
               <p className="truncate text-[14px] font-semibold text-ink">
-                {destination ? destination.name : "Choose a city landmark"}
+                {destination ? localizePlaceName(destination, locale) : s.chooseLandmark}
               </p>
             </div>
           </div>
@@ -117,8 +188,8 @@ export function LocationStep() {
         disabled={!destination}
       >
         {routeSummary
-          ? `See Rides • From ${routeSummary.bajajEtb} ETB`
-          : "Select Destination"}
+          ? `${s.seeRidesFrom} ${formatEtb(routeSummary.bajajEtb, locale)}`
+          : s.selectDestination}
       </Button>
     </div>
   );

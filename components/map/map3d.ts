@@ -1,4 +1,5 @@
 import type { LayerSpecification, Map as MapLibreMap } from "maplibre-gl";
+import type { Locale } from "@/types/fleet";
 
 export const OPENFREEMAP_POSITRON_STYLE = "https://tiles.openfreemap.org/styles/positron";
 export const CARTO_POSITRON_STYLE =
@@ -230,4 +231,75 @@ export function applyCameraMode(
     bearing: is3d ? targetBearing : 0,
     duration: 450,
   });
+}
+
+const CARTO_GLYPH_RE =
+  /^(https:\/\/tiles\.basemaps\.cartocdn\.com\/.+\/fonts\/)([^/]+)\/(\d+-\d+\.pbf)(.*)$/i;
+
+/**
+ * Carto Positron's style requests `Noto Sans Italic` / `Open Sans Italic` for
+ * Ethiopic codepoint range `4608-4863.pbf`, which returns 404 on Carto's CDN.
+ * Carto DOES serve all non-ASCII ranges under `Noto Sans Regular`.
+ */
+export function rewriteCartoGlyphUrl(url: string): string {
+  const match = CARTO_GLYPH_RE.exec(url);
+  if (!match) return url;
+  const [, prefix, fontSegment, rangeFile, suffix] = match;
+  if (!prefix || !rangeFile) return url;
+  if (rangeFile === "0-255.pbf" || fontSegment === "Noto%20Sans%20Regular") {
+    return url;
+  }
+  return `${prefix}Noto%20Sans%20Regular/${rangeFile}${suffix ?? ""}`;
+}
+
+/**
+ * Updates basemap label symbol layers to prefer Amharic (`name:am` / `name:nonlatin`)
+ * or English (`name:en` / `name:latin`) dynamically when toggling locale.
+ */
+export function applyMapLanguage(map: MapLibreMap, locale: Locale): void {
+  const layers = map.getStyle()?.layers;
+  if (!layers) return;
+
+  const textExpr: [
+    "coalesce",
+    ["get", string],
+    ["get", string],
+    ["get", string],
+    ["get", string],
+  ] =
+    locale === "am"
+      ? [
+          "coalesce",
+          ["get", "name:am"],
+          ["get", "name:nonlatin"],
+          ["get", "name"],
+          ["get", "name:en"],
+        ]
+      : [
+          "coalesce",
+          ["get", "name:en"],
+          ["get", "name_en"],
+          ["get", "name:latin"],
+          ["get", "name"],
+        ];
+
+  for (const layer of layers) {
+    if (layer.type !== "symbol") continue;
+    if (
+      layer.id.startsWith("cargo-") ||
+      layer.id.includes("housenumber") ||
+      layer.id.includes("shield") ||
+      layer.id.includes("ref")
+    ) {
+      continue;
+    }
+    const layout = layer.layout as Record<string, unknown> | undefined;
+    if (!layout || !("text-field" in layout)) continue;
+
+    try {
+      map.setLayoutProperty(layer.id, "text-field", textExpr);
+    } catch {
+      // Ignore layers whose vector schema rejects custom text-field expressions
+    }
+  }
 }

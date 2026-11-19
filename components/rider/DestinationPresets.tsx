@@ -4,6 +4,8 @@ import { MapPin } from "lucide-react";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
 import { CITIES } from "@/lib/cities";
+import { getStrings, localizePlaceName } from "@/lib/i18n";
+import { useFleetStore } from "@/store/useFleetStore";
 import type { CityId, Place } from "@/types/fleet";
 
 export interface DestinationPresetsProps {
@@ -26,6 +28,8 @@ export function DestinationPresets({
   onSelect,
   onTogglePickOnMap,
 }: DestinationPresetsProps) {
+  const locale = useFleetStore((s) => s.locale);
+  const s = getStrings(locale);
   const landmarks = CITIES[cityId].landmarks.filter((l) => l.id !== pickupId);
 
   return (
@@ -45,7 +49,7 @@ export function DestinationPresets({
         )}
       >
         <Icon icon={MapPin} size={13} />
-        {pickingOnMap ? "Tap map…" : "Pick on map"}
+        {pickingOnMap ? s.tapMapShort : s.pickOnMap}
       </button>
 
       {landmarks.map((place) => {
@@ -62,7 +66,7 @@ export function DestinationPresets({
                 : "border-line bg-canvas text-ink hover:bg-surface",
             )}
           >
-            {place.name}
+            {localizePlaceName(place, locale)}
           </button>
         );
       })}

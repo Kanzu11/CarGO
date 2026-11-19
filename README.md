@@ -2,7 +2,7 @@
 
 Mobile-first ride-hailing, Bajaj, and local fleet dispatch **PWA for Ethiopia**, built to be wrapped as an Android Trusted Web Activity (TWA) and showcased as a live full-stack portfolio product.
 
-- **`/`** — Mobile-first Rider & Driver app (landmark-first pickup crosshair, quick landmark chips, upfront locked ETB fares across Bajaj / Economy / Minivan / Cargo, Cash / Telebirr / CBE Birr toggle, live 3D follow-cam trip lifecycle, and single-device Driver Mode)
+- **`/`** — Mobile-first Rider & Driver app (real browser GPS + simulated fallback toggle, bilingual English / Amharic `አማርኛ`, landmark-first pickup crosshair, upfront locked ETB fares across Bajaj / Economy / Minivan / Cargo, Cash / Telebirr / CBE Birr toggle, live 3D follow-cam trip lifecycle, and single-device Driver Mode)
 - **`/dispatch`** — Full-viewport (`100vh`) Live Geospatial Fleet Command Center (real-time KPIs, tier filters & search, 3D fleet tracking, live Telemetry Inspector, trip timeline, and dispatch interventions)
 - **`/design`** — Flat Swiss/industrial design system gallery
 

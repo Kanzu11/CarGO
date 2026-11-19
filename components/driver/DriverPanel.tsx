@@ -4,7 +4,7 @@ import { ActiveJobCard } from "@/components/driver/ActiveJobCard";
 import { IncomingRequestCard } from "@/components/driver/IncomingRequestCard";
 import { OnlineSwitch } from "@/components/driver/OnlineSwitch";
 import { StatusDot } from "@/components/ui/StatusDot";
-import { CITIES } from "@/lib/cities";
+import { getStrings, localizeCityName } from "@/lib/i18n";
 import { useFleetStore } from "@/store/useFleetStore";
 
 /**
@@ -12,11 +12,13 @@ import { useFleetStore } from "@/store/useFleetStore";
  */
 export function DriverPanel() {
   const cityId = useFleetStore((s) => s.cityId);
+  const locale = useFleetStore((s) => s.locale);
   const driverOnline = useFleetStore((s) => s.driverOnline);
   const driverOffer = useFleetStore((s) => s.driverOffer);
   const activeDriverTripId = useFleetStore((s) => s.activeDriverTripId);
   const trips = useFleetStore((s) => s.trips);
 
+  const s = getStrings(locale);
   const activeTrip = activeDriverTripId
     ? trips.find((t) => t.id === activeDriverTripId)
     : undefined;
@@ -34,8 +36,8 @@ export function DriverPanel() {
           <StatusDot tone={driverOnline ? "live" : "idle"} pulse={driverOnline} size={6} />
           <span>
             {driverOnline
-              ? `Scanning ${CITIES[cityId].name} landmarks — next request arriving shortly…`
-              : "Switch Online above to receive a live dispatch request in 3 seconds."}
+              ? `${localizeCityName(cityId, locale)} · ${s.scanningLandmarks}`
+              : s.goOnlinePrompt}
           </span>
         </div>
       )}

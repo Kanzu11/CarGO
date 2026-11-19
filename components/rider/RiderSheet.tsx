@@ -5,10 +5,14 @@ import { TierStep } from "@/components/rider/TierStep";
 import { TripStep } from "@/components/rider/TripStep";
 import { useFleetStore } from "@/store/useFleetStore";
 
+export interface RiderSheetProps {
+  onRequestGps: () => void;
+}
+
 /**
  * Coordinates the 3-step Rider flow inside the mobile bottom sheet / desktop floating panel.
  */
-export function RiderSheet() {
+export function RiderSheet({ onRequestGps }: RiderSheetProps) {
   const riderStep = useFleetStore((s) => s.riderStep);
   const activeRiderTripId = useFleetStore((s) => s.activeRiderTripId);
   const trips = useFleetStore((s) => s.trips);
@@ -25,5 +29,5 @@ export function RiderSheet() {
     return <TierStep />;
   }
 
-  return <LocationStep />;
+  return <LocationStep onRequestGps={onRequestGps} />;
 }

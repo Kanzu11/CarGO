@@ -3,7 +3,8 @@
 import { Badge } from "@/components/ui/Badge";
 import { StatusDot, type DotTone } from "@/components/ui/StatusDot";
 import { cn } from "@/lib/cn";
-import { TIERS } from "@/lib/tiers";
+import { formatEtb, localizeLandmarkNameString, localizeTier } from "@/lib/i18n";
+import { useFleetStore } from "@/store/useFleetStore";
 import type { Vehicle, VehicleStatus } from "@/types/fleet";
 
 function statusDotTone(status: VehicleStatus): DotTone {
@@ -29,6 +30,8 @@ export interface VehicleRowProps {
 
 /** Dense 48px fleet unit row inside the `/dispatch` sidebar. */
 export function VehicleRow({ vehicle, activeFareEtb, selected, onSelect }: VehicleRowProps) {
+  const locale = useFleetStore((s) => s.locale);
+
   return (
     <button
       type="button"
@@ -49,18 +52,18 @@ export function VehicleRow({ vehicle, activeFareEtb, selected, onSelect }: Vehic
             {vehicle.id}
           </span>
           <Badge tone={vehicle.flagged ? "danger" : "neutral"}>
-            {TIERS[vehicle.tier].name}
+            {localizeTier(vehicle.tier, locale).name}
           </Badge>
         </div>
 
         <p className="mt-0.5 truncate text-[11px] text-muted">
-          {vehicle.landmark} · {vehicle.driver.name}
+          {localizeLandmarkNameString(vehicle.landmark, locale)} · {vehicle.driver.name}
         </p>
       </div>
 
       <div className="shrink-0 text-right">
         <p className="num text-[12px] font-semibold text-ink">
-          {typeof activeFareEtb === "number" ? `${activeFareEtb} ETB` : "—"}
+          {typeof activeFareEtb === "number" ? formatEtb(activeFareEtb, locale) : "—"}
         </p>
         <p className="num text-[11px] text-muted">{vehicle.speedKmh} km/h</p>
       </div>

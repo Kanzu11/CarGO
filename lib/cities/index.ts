@@ -2,7 +2,7 @@ import { ADAMA_CITY } from "@/lib/cities/adama";
 import { ADDIS_CITY } from "@/lib/cities/addis";
 import { HAWASSA_CITY } from "@/lib/cities/hawassa";
 import { WORABE_CITY } from "@/lib/cities/worabe";
-import { haversineMeters } from "@/lib/geo";
+import { haversineKm, haversineMeters } from "@/lib/geo";
 import type { CityConfig, CityId, LngLat, Place } from "@/types/fleet";
 
 export const CITY_ORDER: ReadonlyArray<CityId> = ["adama", "addis", "hawassa", "worabe"];
@@ -49,5 +49,34 @@ export function findNearestPlace(
   return {
     place: best,
     distanceMeters: Math.round(bestDist),
+  };
+}
+
+const CITY_RADIUS_KM = 35;
+
+/**
+ * Finds the closest supported CarGo city to a real GPS coordinate and reports
+ * whether the user is physically inside its 35 km regional dispatch perimeter.
+ */
+export function detectNearestSupportedCity(coords: LngLat): {
+  cityId: CityId;
+  distanceKm: number;
+  isWithinCity: boolean;
+} {
+  let bestCity: CityId = DEFAULT_CITY_ID;
+  let bestDistKm = Infinity;
+
+  for (const id of CITY_ORDER) {
+    const dist = haversineKm(coords, CITIES[id].center);
+    if (dist < bestDistKm) {
+      bestDistKm = dist;
+      bestCity = id;
+    }
+  }
+
+  return {
+    cityId: bestCity,
+    distanceKm: Number(bestDistKm.toFixed(1)),
+    isWithinCity: bestDistKm <= CITY_RADIUS_KM,
   };
 }

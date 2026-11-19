@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { cn } from "@/lib/cn";
 import { StatusDot } from "@/components/ui/StatusDot";
+import { getStrings } from "@/lib/i18n";
+import { useFleetStore } from "@/store/useFleetStore";
 
 const RESTORED_VISIBLE_MS = 2000;
 
@@ -14,6 +16,7 @@ const RESTORED_VISIBLE_MS = 2000;
  */
 export function NetworkBanner() {
   const online = useOnlineStatus();
+  const locale = useFleetStore((s) => s.locale);
   const wasOffline = useRef(false);
   const [restored, setRestored] = useState(false);
 
@@ -48,7 +51,7 @@ export function NetworkBanner() {
       <div className="flex h-6 items-center justify-center gap-2 text-[12px] font-medium">
         <StatusDot tone={online ? "live" : "warn"} pulse={!online} size={6} />
         <span className={online ? "text-live" : "text-warn"}>
-          {online ? "Connected to CarGo dispatch" : "Reconnecting to CarGo dispatch…"}
+          {online ? getStrings(locale).connectedBanner : getStrings(locale).reconnectingBanner}
         </span>
       </div>
     </div>
