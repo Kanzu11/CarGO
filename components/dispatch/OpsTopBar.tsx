@@ -4,40 +4,23 @@ import Link from "next/link";
 import { PanelLeftClose, PanelLeftOpen, Smartphone } from "lucide-react";
 import { useMemo } from "react";
 import { Wordmark } from "@/components/brand/Wordmark";
-import { KpiStrip } from "@/components/dispatch/KpiStrip";
 import { HydrationGate } from "@/components/system/HydrationGate";
 import { Icon } from "@/components/ui/Icon";
 import { LocaleToggle } from "@/components/ui/LocaleToggle";
 import { Select } from "@/components/ui/Select";
-import { StatusDot, type DotTone } from "@/components/ui/StatusDot";
-import { Switch } from "@/components/ui/Switch";
 import { CITY_ORDER } from "@/lib/cities";
 import { getStrings, localizeCityName } from "@/lib/i18n";
 import { useFleetStore } from "@/store/useFleetStore";
-import type { CityId, ConnStatus } from "@/types/fleet";
-
-function wsTone(status: ConnStatus): DotTone {
-  switch (status) {
-    case "connected":
-      return "live";
-    case "reconnecting":
-      return "warn";
-    case "offline":
-      return "danger";
-  }
-}
+import type { CityId } from "@/types/fleet";
 
 /**
- * 48px Ops Command Center header with city switcher, KPI strip, Simulate Traffic toggle,
- * WebSocket status dot, EN/አማ language toggle, and Mobile App link back to `/`.
+ * Minimal 48px Ops Command Center header: sidebar toggle, CarGo Ops wordmark,
+ * city switcher, EN/አማ language toggle, and Mobile App link back to `/`.
  */
 export function OpsTopBar() {
   const cityId = useFleetStore((s) => s.cityId);
   const setCity = useFleetStore((s) => s.setCity);
   const locale = useFleetStore((s) => s.locale);
-  const trafficEnabled = useFleetStore((s) => s.trafficEnabled);
-  const setTrafficEnabled = useFleetStore((s) => s.setTrafficEnabled);
-  const connStatus = useFleetStore((s) => s.connStatus);
   const sidebarCollapsed = useFleetStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useFleetStore((s) => s.setSidebarCollapsed);
 
@@ -87,33 +70,8 @@ export function OpsTopBar() {
         </HydrationGate>
       </div>
 
-      {/* Center: compact live KPI strip on desktop */}
-      <div className="hidden xl:flex">
-        <KpiStrip />
-      </div>
-
-      {/* Right: Simulate Traffic toggle, WS dot, LocaleToggle, Mobile App link */}
+      {/* Right: LocaleToggle and Mobile App link */}
       <div className="flex shrink-0 items-center gap-2">
-        <HydrationGate fallback={null}>
-          <div className="hidden sm:flex items-center">
-            <Switch
-              size="sm"
-              tone="live"
-              checked={trafficEnabled}
-              onChange={setTrafficEnabled}
-              label={s.simulateTraffic}
-            />
-          </div>
-        </HydrationGate>
-
-        <span
-          title={`Dispatch stream: ${connStatus}`}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2 py-1 text-[11px] font-medium text-ink"
-        >
-          <StatusDot tone={wsTone(connStatus)} pulse={connStatus !== "offline"} size={6} />
-          <span>WS</span>
-        </span>
-
         <LocaleToggle />
 
         <Link

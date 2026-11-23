@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { CAMERA_PRESETS } from "@/components/map/map3d";
-import { buildCityEnvironmentGeoJson } from "@/components/map/mapTrees";
+import { CAMERA_PRESETS, ESRI_WORLD_IMAGERY_TILES } from "@/components/map/map3d";
+import { buildCityLandmarksGeoJson } from "@/components/map/mapTrees";
 import {
   buildFleetPointFeatureCollection,
   buildPin3dPolygon,
@@ -72,30 +72,20 @@ describe("3D map vehicle sprites, pins & geometry", () => {
     expect(CAMERA_PRESETS["rider-pickup"].pitch).toBeGreaterThan(0);
   });
 
-  it("generates parks, 3D trees (trunks + crowns) and localized landmarks for all 4 cities", () => {
-    for (const cityId of CITY_ORDER) {
-      const env = buildCityEnvironmentGeoJson(cityId, "en");
-      expect(env.parks.features.length).toBeGreaterThan(0);
-      expect(env.trees.features.length).toBeGreaterThan(100);
-      expect(env.landmarks.features).toHaveLength(CITIES[cityId].landmarks.length);
+  it("configures Esri World Imagery satellite tiles and localized landmark anchors for all 4 cities", () => {
+    expect(ESRI_WORLD_IMAGERY_TILES).toContain("World_Imagery/MapServer/tile/{z}/{y}/{x}");
 
-      let hasTrunk = false;
-      let hasCrown = false;
-      for (const tree of env.trees.features) {
-        const ring = tree.geometry.coordinates[0]!;
-        expect(ring[0]).toEqual(ring[ring.length - 1]);
-        const base = Number(tree.properties?.base ?? 0);
-        const height = Number(tree.properties?.height ?? 0);
-        expect(height).toBeGreaterThan(base);
-        if (tree.properties?.kind === "trunk") hasTrunk = true;
-        if (tree.properties?.kind === "crown") hasCrown = true;
+    for (const cityId of CITY_ORDER) {
+      const landmarks = buildCityLandmarksGeoJson(cityId, "en");
+      expect(landmarks.features).toHaveLength(CITIES[cityId].landmarks.length);
+      for (const feat of landmarks.features) {
+        expect(feat.geometry.type).toBe("Point");
+        expect(feat.properties?.label).toBeTruthy();
       }
-      expect(hasTrunk).toBe(true);
-      expect(hasCrown).toBe(true);
     }
 
-    const amharicEnv = buildCityEnvironmentGeoJson("adama", "am");
-    const firstLabel = String(amharicEnv.landmarks.features[0]?.properties?.label ?? "");
+    const amharicLandmarks = buildCityLandmarksGeoJson("adama", "am");
+    const firstLabel = String(amharicLandmarks.features[0]?.properties?.label ?? "");
     expect(firstLabel).toMatch(/[\u1200-\u137F]/);
   });
 });

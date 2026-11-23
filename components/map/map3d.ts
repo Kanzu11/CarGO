@@ -1,12 +1,16 @@
-import type { LayerSpecification, Map as MapLibreMap } from "maplibre-gl";
+import type { Map as MapLibreMap } from "maplibre-gl";
 import type { Locale } from "@/types/fleet";
 
 export const OPENFREEMAP_POSITRON_STYLE = "https://tiles.openfreemap.org/styles/positron";
 export const CARTO_POSITRON_STYLE =
   "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+export const ESRI_WORLD_IMAGERY_TILES =
+  "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 export const AWS_TERRARIUM_TILES =
   "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
 
+export const SATELLITE_SOURCE_ID = "cargo-satellite-imagery";
+export const SATELLITE_LAYER_ID = "cargo-satellite-layer";
 export const TERRAIN_SOURCE_ID = "cargo-terrain-dem";
 export const HILLSHADE_LAYER_ID = "cargo-hillshade";
 export const BUILDINGS_3D_LAYER_ID = "cargo-buildings-3d";
@@ -52,95 +56,21 @@ export function findFirstSymbolLayerId(map: MapLibreMap): string | undefined {
   return layers.find((layer) => layer.type === "symbol")?.id;
 }
 
-interface BuildingSourceRef {
-  source: string;
-  sourceLayer: string;
-}
-
-function detectBuildingSource(layers: ReadonlyArray<LayerSpecification>): BuildingSourceRef | null {
-  for (const layer of layers) {
-    if (layer.type !== "fill") continue;
-    const candidate = layer as LayerSpecification & {
-      source?: string;
-      "source-layer"?: string;
-    };
-    const sourceLayer = candidate["source-layer"];
-    if (candidate.source && (sourceLayer === "building" || sourceLayer === "buildings")) {
-      return { source: candidate.source, sourceLayer };
-    }
-  }
-  return null;
-}
-
 /**
- * Adds a flat, unshaded Swiss-grey 3D building extrusion layer derived from the
- * active vector basemap (works seamlessly on OpenFreeMap `openmaptiles/building`
- * and Carto `protomaps/buildings` fallback).
+ * Synthetic grey 3D building boxes obscure real satellite rooftops and trees,
+ * so hide any active extrusion layer in hybrid satellite mode.
  */
-export function apply3dBuildingsLayer(map: MapLibreMap, visible = true): void {
-  const style = map.getStyle();
-  if (!style?.layers) return;
-
+export function apply3dBuildingsLayer(map: MapLibreMap, visible = false): void {
+  void visible;
   if (map.getLayer(BUILDINGS_3D_LAYER_ID)) {
-    setBuildingsVisibility(map, visible);
-    return;
+    map.setLayoutProperty(BUILDINGS_3D_LAYER_ID, "visibility", "none");
   }
-
-  const buildingRef = detectBuildingSource(style.layers);
-  if (!buildingRef) return;
-
-  const beforeId = findFirstSymbolLayerId(map);
-
-  map.addLayer(
-    {
-      id: BUILDINGS_3D_LAYER_ID,
-      type: "fill-extrusion",
-      source: buildingRef.source,
-      "source-layer": buildingRef.sourceLayer,
-      minzoom: 12.5,
-      layout: {
-        visibility: visible ? "visible" : "none",
-      },
-      paint: {
-        "fill-extrusion-color": [
-          "interpolate",
-          ["linear"],
-          ["coalesce", ["get", "render_height"], ["get", "height"], 8],
-          0,
-          "#E2E8F0",
-          14,
-          "#CBD5E1",
-          32,
-          "#94A3B8",
-          60,
-          "#64748B",
-        ],
-        "fill-extrusion-height": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          12.5,
-          0,
-          14.2,
-          ["coalesce", ["get", "render_height"], ["get", "height"], 8],
-        ],
-        "fill-extrusion-base": [
-          "coalesce",
-          ["get", "render_min_height"],
-          ["get", "min_height"],
-          0,
-        ],
-        "fill-extrusion-opacity": 0.9,
-        "fill-extrusion-vertical-gradient": false,
-      },
-    },
-    beforeId,
-  );
 }
 
 export function setBuildingsVisibility(map: MapLibreMap, visible: boolean): void {
+  void visible;
   if (!map.getLayer(BUILDINGS_3D_LAYER_ID)) return;
-  map.setLayoutProperty(BUILDINGS_3D_LAYER_ID, "visibility", visible ? "visible" : "none");
+  map.setLayoutProperty(BUILDINGS_3D_LAYER_ID, "visibility", "none");
 }
 
 /**
@@ -198,23 +128,22 @@ export function applyTerrainAndHillshade(map: MapLibreMap, enabled: boolean): vo
 }
 
 /**
- * Applies crisp daylight highland sky (no haze glow) and warm directional sun
- * lighting for architectural facade & tree crown contrast.
+ * Clean dark-slate horizon sky matching high-resolution satellite imagery.
  */
 export function applyFlatSkyAndLight(map: MapLibreMap, is3d: boolean): void {
   try {
     map.setSky({
-      "sky-color": "#E0F2FE",
-      "horizon-color": "#F0F9FF",
-      "fog-color": "#F4F6F2",
+      "sky-color": "#0F172A",
+      "horizon-color": "#1E293B",
+      "fog-color": "#0F172A",
       "sky-horizon-blend": 0,
       "horizon-fog-blend": 0,
       "atmosphere-blend": 0,
     });
     map.setLight({
       anchor: "map",
-      intensity: is3d ? 0.45 : 0.14,
-      color: "#FFFBEB",
+      intensity: is3d ? 0.3 : 0.14,
+      color: "#FFFFFF",
       position: [1.35, 205, 42],
     });
   } catch {
@@ -223,64 +152,95 @@ export function applyFlatSkyAndLight(map: MapLibreMap, is3d: boolean): void {
 }
 
 /**
- * Recolors greyscale Positron basemap layers (OpenFreeMap / Carto) into a
- * vibrant, living Ethiopian urban palette: azure water, lush parks, warm
- * arterial highways, and crisp residential streets.
+ * Transforms the vector Positron basemap into a crisp Hybrid Satellite View:
+ * mounts Esri World Imagery aerial tiles beneath transparent road/waterway
+ * overlays and high-contrast white haloed street & city labels.
  */
-export function applyVibrantMapTheme(map: MapLibreMap): void {
+export function applySatelliteHybridTheme(map: MapLibreMap): void {
   const layers = map.getStyle()?.layers;
   if (!layers) return;
+
+  if (!map.getSource(SATELLITE_SOURCE_ID)) {
+    map.addSource(SATELLITE_SOURCE_ID, {
+      type: "raster",
+      tiles: [ESRI_WORLD_IMAGERY_TILES],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: "Esri, Maxar, Earthstar Geographics",
+    });
+  }
+
+  if (!map.getLayer(SATELLITE_LAYER_ID)) {
+    const firstNonBgLayer = layers.find((layer) => layer.type !== "background")?.id;
+    map.addLayer(
+      {
+        id: SATELLITE_LAYER_ID,
+        type: "raster",
+        source: SATELLITE_SOURCE_ID,
+        paint: {
+          "raster-opacity": 1,
+          "raster-fade-duration": 150,
+        },
+      },
+      firstNonBgLayer,
+    );
+  }
 
   for (const layer of layers) {
     if (layer.id.startsWith("cargo-")) continue;
 
     try {
       if (layer.type === "background") {
-        map.setPaintProperty(layer.id, "background-color", "#F4F6F2");
+        map.setPaintProperty(layer.id, "background-color", "#0F172A");
         continue;
       }
 
-      if (layer.type === "fill") {
-        if (/water|ocean|lake|river|basin/i.test(layer.id)) {
-          map.setPaintProperty(layer.id, "fill-color", "#BAE6FD");
-          map.setPaintProperty(layer.id, "fill-outline-color", "#7DD3FC");
-          continue;
-        }
-        if (/park|wood|forest|grass|green|vegetation|garden|pitch|cemetery|national_park/i.test(layer.id)) {
-          map.setPaintProperty(layer.id, "fill-color", "#DCFCE7");
-          map.setPaintProperty(layer.id, "fill-opacity", 0.85);
-          continue;
-        }
-        if (/landcover|landuse/i.test(layer.id) && /residential|suburb/i.test(layer.id)) {
-          map.setPaintProperty(layer.id, "fill-color", "#F1F5F9");
-        }
+      if (layer.type === "fill" || layer.type === "fill-extrusion") {
+        map.setLayoutProperty(layer.id, "visibility", "none");
         continue;
       }
 
       if (layer.type === "line") {
+        if (/boundary|admin|rail|ferry|aeroway|footway|path|track|service|building/i.test(layer.id)) {
+          map.setLayoutProperty(layer.id, "visibility", "none");
+          continue;
+        }
         if (/waterway|river|stream|canal/i.test(layer.id)) {
           map.setPaintProperty(layer.id, "line-color", "#38BDF8");
+          map.setPaintProperty(layer.id, "line-opacity", 0.5);
           continue;
         }
         if (/highway|motorway|trunk|primary/i.test(layer.id)) {
           if (/casing/i.test(layer.id)) {
-            map.setPaintProperty(layer.id, "line-color", "#F59E0B");
-            map.setPaintProperty(layer.id, "line-opacity", 0.55);
+            map.setPaintProperty(layer.id, "line-color", "#09090B");
+            map.setPaintProperty(layer.id, "line-opacity", 0.35);
           } else {
-            map.setPaintProperty(layer.id, "line-color", "#FEF08A");
+            map.setPaintProperty(layer.id, "line-color", "#FDE047");
+            map.setPaintProperty(layer.id, "line-opacity", 0.45);
           }
           continue;
         }
-        if (/secondary|tertiary/i.test(layer.id)) {
-          map.setPaintProperty(
-            layer.id,
-            "line-color",
-            /casing/i.test(layer.id) ? "#CBD5E1" : "#FFFFFF",
-          );
+        if (/casing/i.test(layer.id)) {
+          map.setPaintProperty(layer.id, "line-color", "#09090B");
+          map.setPaintProperty(layer.id, "line-opacity", 0.22);
+        } else {
+          map.setPaintProperty(layer.id, "line-color", "#FFFFFF");
+          map.setPaintProperty(layer.id, "line-opacity", 0.28);
+        }
+        continue;
+      }
+
+      if (layer.type === "symbol") {
+        const layout = layer.layout as Record<string, unknown> | undefined;
+        if (layout && "text-field" in layout) {
+          map.setPaintProperty(layer.id, "text-color", "#FFFFFF");
+          map.setPaintProperty(layer.id, "text-halo-color", "#09090B");
+          map.setPaintProperty(layer.id, "text-halo-width", 1.8);
+          map.setPaintProperty(layer.id, "text-halo-blur", 0.5);
         }
       }
     } catch {
-      // Ignore individual layers whose style spec disallows a given paint mutation
+      // Ignore individual layers whose style spec disallows a given property
     }
   }
 }

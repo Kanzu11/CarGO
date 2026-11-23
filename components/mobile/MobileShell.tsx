@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { MapPin, X } from "lucide-react";
 import { useMemo } from "react";
 import { DriverPanel } from "@/components/driver/DriverPanel";
@@ -143,27 +142,6 @@ export function MobileShell() {
       />
 
       <TopBar />
-
-      {/* Subtle desktop top-right link to Ops Command Center */}
-      <div className="pointer-events-none fixed right-3 top-3 z-30 hidden md:block">
-        <HydrationGate
-          fallback={
-            <Link
-              href="/dispatch"
-              className="pointer-events-auto inline-flex h-9 items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 text-[13px] font-medium text-ink hover:bg-surface"
-            >
-              Ops View →
-            </Link>
-          }
-        >
-          <Link
-            href="/dispatch"
-            className="pointer-events-auto inline-flex h-9 items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 text-[13px] font-medium text-ink hover:bg-surface"
-          >
-            {s.opsView} →
-          </Link>
-        </HydrationGate>
-      </div>
 
       {/* Tap-map-to-set-destination instruction pill */}
       {pickingDestinationOnMap && (

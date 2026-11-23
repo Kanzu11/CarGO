@@ -3,7 +3,6 @@
 import { ArrowRight, LocateFixed, Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import { DestinationPresets } from "@/components/rider/DestinationPresets";
-import { LandmarkChips } from "@/components/rider/LandmarkChips";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
@@ -11,7 +10,6 @@ import { lockedFare } from "@/lib/fare";
 import {
   formatEtb,
   getStrings,
-  localizeLandmarkChip,
   localizePlaceName,
 } from "@/lib/i18n";
 import { computeCityRoute } from "@/lib/routing";
@@ -22,7 +20,7 @@ export interface LocationStepProps {
 }
 
 /**
- * Rider Step 1 — Landmark-first Pickup & Destination selection with
+ * Rider Step 1 — Clean Pickup & Destination selection with
  * Real GPS (`GPS`) and Simulated (`Sim`) dual location toggle.
  */
 export function LocationStep({ onRequestGps }: LocationStepProps) {
@@ -38,10 +36,6 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
   const pickingTarget = useFleetStore((s) => s.pickingTarget);
   const setPickingTarget = useFleetStore((s) => s.setPickingTarget);
   const setDestination = useFleetStore((s) => s.setDestination);
-  const landmarkChip = useFleetStore((s) => s.landmarkChip);
-  const setLandmarkChip = useFleetStore((s) => s.setLandmarkChip);
-  const customLandmarkNote = useFleetStore((s) => s.customLandmarkNote);
-  const setCustomLandmarkNote = useFleetStore((s) => s.setCustomLandmarkNote);
   const proceedToTierStep = useFleetStore((s) => s.proceedToTierStep);
 
   const s = getStrings(locale);
@@ -77,7 +71,7 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-                  {s.pickupLabel} · {localizeLandmarkChip(landmarkChip, locale)}
+                  {s.pickupLabel}
                 </p>
                 {locationSource === "real" && userGeo && (
                   <span className="num rounded bg-live-soft px-1 py-px text-[10px] font-semibold text-live">
@@ -128,19 +122,6 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
               <span>{s.simLabel}</span>
             </button>
           </div>
-        </div>
-
-        <div className="mt-2.5 space-y-2">
-          <LandmarkChips value={landmarkChip} onChange={setLandmarkChip} />
-          <input
-            type="text"
-            aria-label={s.landmarkNoteLabel}
-            value={customLandmarkNote}
-            onChange={(e) => setCustomLandmarkNote(e.target.value)}
-            maxLength={60}
-            placeholder={s.landmarkPlaceholder}
-            className="h-9 w-full rounded-lg border border-line bg-canvas px-2.5 text-[13px] text-ink placeholder:text-muted focus:border-brand focus:outline-none"
-          />
         </div>
       </div>
 

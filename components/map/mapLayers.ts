@@ -1,13 +1,11 @@
 import type { Feature, FeatureCollection, LineString, Point, Polygon } from "geojson";
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
-import { BUILDINGS_3D_LAYER_ID, findFirstSymbolLayerId } from "@/components/map/map3d";
-import { buildCityEnvironmentGeoJson } from "@/components/map/mapTrees";
+import { findFirstSymbolLayerId } from "@/components/map/map3d";
+import { buildCityLandmarksGeoJson } from "@/components/map/mapTrees";
 import { buildPin3dPolygon, localMetersToLngLat } from "@/components/map/vehicleModels";
 import { registerVehicleSprites } from "@/components/map/vehicleSprites";
 import type { CityId, LngLat, Locale, Trip, UserGeoPosition } from "@/types/fleet";
 
-export const ENV_PARKS_SOURCE_ID = "cargo-env-parks";
-export const ENV_TREES_SOURCE_ID = "cargo-env-trees";
 export const ENV_LANDMARKS_SOURCE_ID = "cargo-env-landmarks";
 export const ROUTES_SOURCE_ID = "cargo-routes";
 export const PINS_3D_SOURCE_ID = "cargo-pins-3d";
@@ -16,9 +14,6 @@ export const FLEET_POINTS_SOURCE_ID = "cargo-fleet-points";
 export const USER_ACCURACY_SOURCE_ID = "cargo-user-accuracy";
 export const USER_DOT_SOURCE_ID = "cargo-user-dot";
 
-export const ENV_PARKS_LAYER_ID = "cargo-env-parks-fill";
-export const ENV_TREES_LAYER_ID = "cargo-env-trees-3d";
-export const ENV_TREES_2D_LAYER_ID = "cargo-env-trees-2d";
 export const ENV_LANDMARKS_LAYER_ID = "cargo-env-landmarks-dots";
 export const ROUTE_APPROACH_LAYER_ID = "cargo-route-approach";
 export const ROUTE_HALO_LAYER_ID = "cargo-route-halo";
@@ -51,8 +46,6 @@ function ensureGeoJsonSource(map: MapLibreMap, id: string): void {
 export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
   registerVehicleSprites(map);
 
-  ensureGeoJsonSource(map, ENV_PARKS_SOURCE_ID);
-  ensureGeoJsonSource(map, ENV_TREES_SOURCE_ID);
   ensureGeoJsonSource(map, ENV_LANDMARKS_SOURCE_ID);
   ensureGeoJsonSource(map, ROUTES_SOURCE_ID);
   ensureGeoJsonSource(map, PINS_3D_SOURCE_ID);
@@ -61,68 +54,7 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
   ensureGeoJsonSource(map, USER_ACCURACY_SOURCE_ID);
   ensureGeoJsonSource(map, USER_DOT_SOURCE_ID);
 
-  const beforeBuildingsOrLabel = map.getLayer(BUILDINGS_3D_LAYER_ID)
-    ? BUILDINGS_3D_LAYER_ID
-    : findFirstSymbolLayerId(map);
   const beforeSymbol = findFirstSymbolLayerId(map);
-
-  if (!map.getLayer(ENV_PARKS_LAYER_ID)) {
-    map.addLayer(
-      {
-        id: ENV_PARKS_LAYER_ID,
-        type: "fill",
-        source: ENV_PARKS_SOURCE_ID,
-        paint: {
-          "fill-color": ["get", "color"],
-          "fill-opacity": 0.78,
-          "fill-outline-color": "#86EFAC",
-        },
-      },
-      beforeBuildingsOrLabel,
-    );
-  }
-
-  if (!map.getLayer(ENV_TREES_2D_LAYER_ID)) {
-    map.addLayer(
-      {
-        id: ENV_TREES_2D_LAYER_ID,
-        type: "fill",
-        source: ENV_TREES_SOURCE_ID,
-        minzoom: 13,
-        filter: ["==", ["get", "kind"], "crown"],
-        layout: {
-          visibility: is3d ? "none" : "visible",
-        },
-        paint: {
-          "fill-color": ["get", "color"],
-          "fill-opacity": 0.65,
-        },
-      },
-      beforeSymbol,
-    );
-  }
-
-  if (!map.getLayer(ENV_TREES_LAYER_ID)) {
-    map.addLayer(
-      {
-        id: ENV_TREES_LAYER_ID,
-        type: "fill-extrusion",
-        source: ENV_TREES_SOURCE_ID,
-        minzoom: 12.5,
-        layout: {
-          visibility: is3d ? "visible" : "none",
-        },
-        paint: {
-          "fill-extrusion-color": ["get", "color"],
-          "fill-extrusion-height": ["get", "height"],
-          "fill-extrusion-base": ["get", "base"],
-          "fill-extrusion-vertical-gradient": false,
-          "fill-extrusion-opacity": 0.94,
-        },
-      },
-      beforeSymbol,
-    );
-  }
 
   if (!map.getLayer(ENV_LANDMARKS_LAYER_ID)) {
     map.addLayer(
@@ -133,8 +65,8 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
         minzoom: 12,
         paint: {
           "circle-radius": 4.5,
-          "circle-color": "#FFFFFF",
-          "circle-stroke-color": "#047857",
+          "circle-color": "#10B981",
+          "circle-stroke-color": "#FFFFFF",
           "circle-stroke-width": 2,
         },
       },
@@ -153,10 +85,10 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
         "line-join": "round",
       },
       paint: {
-        "line-color": "#D97706",
+        "line-color": "#F59E0B",
         "line-dasharray": [2, 2],
         "line-width": ["interpolate", ["linear"], ["zoom"], 12, 2.5, 16, 4.2],
-        "line-opacity": 0.92,
+        "line-opacity": 0.95,
       },
     });
   }
@@ -190,7 +122,7 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
         "line-join": "round",
       },
       paint: {
-        "line-color": "#065F46",
+        "line-color": "#064E3B",
         "line-width": ["interpolate", ["linear"], ["zoom"], 12, 6, 16, 9],
         "line-opacity": 0.95,
       },
@@ -208,7 +140,7 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
         "line-join": "round",
       },
       paint: {
-        "line-color": "#047857",
+        "line-color": "#10B981",
         "line-width": ["interpolate", ["linear"], ["zoom"], 12, 3.8, 16, 6.2],
       },
     });
@@ -324,30 +256,17 @@ export function syncFleetLayerMode(map: MapLibreMap, is3d: boolean): void {
   if (map.getLayer(PINS_3D_STEM_LAYER_ID)) {
     map.setLayoutProperty(PINS_3D_STEM_LAYER_ID, "visibility", is3d ? "visible" : "none");
   }
-  if (map.getLayer(ENV_TREES_LAYER_ID)) {
-    map.setLayoutProperty(ENV_TREES_LAYER_ID, "visibility", is3d ? "visible" : "none");
-  }
-  if (map.getLayer(ENV_TREES_2D_LAYER_ID)) {
-    map.setLayoutProperty(ENV_TREES_2D_LAYER_ID, "visibility", is3d ? "none" : "visible");
-  }
 }
 
-/** Populates lush green parks, 3D tree extrusions, and city landmark dots. */
+/** Populates localized landmark anchor dots over the satellite map. */
 export function updateCityEnvironmentLayers(
   map: MapLibreMap,
   cityId: CityId,
   locale: Locale,
 ): void {
-  const parksSource = map.getSource(ENV_PARKS_SOURCE_ID) as GeoJSONSource | undefined;
-  const treesSource = map.getSource(ENV_TREES_SOURCE_ID) as GeoJSONSource | undefined;
   const landmarksSource = map.getSource(ENV_LANDMARKS_SOURCE_ID) as GeoJSONSource | undefined;
-
-  if (!parksSource && !treesSource && !landmarksSource) return;
-
-  const env = buildCityEnvironmentGeoJson(cityId, locale);
-  parksSource?.setData(env.parks);
-  treesSource?.setData(env.trees);
-  landmarksSource?.setData(env.landmarks);
+  if (!landmarksSource) return;
+  landmarksSource.setData(buildCityLandmarksGeoJson(cityId, locale));
 }
 
 export interface RouteAndPinUpdate {

@@ -17,8 +17,8 @@ import {
   applyCameraMode,
   applyFlatSkyAndLight,
   applyMapLanguage,
+  applySatelliteHybridTheme,
   applyTerrainAndHillshade,
-  applyVibrantMapTheme,
   CAMERA_PRESETS,
   CARTO_POSITRON_STYLE,
   OPENFREEMAP_POSITRON_STYLE,
@@ -182,7 +182,7 @@ export default function MapCanvas({
         terrainBlocked: blocked,
         locale: currentLocale,
       } = latestRef.current;
-      applyVibrantMapTheme(map);
+      applySatelliteHybridTheme(map);
       apply3dBuildingsLayer(map, is3d);
       applyFlatSkyAndLight(map, is3d);
       applyTerrainAndHillshade(map, is3d && tier === "full" && !blocked);
