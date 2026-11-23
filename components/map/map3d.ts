@@ -107,11 +107,13 @@ export function apply3dBuildingsLayer(map: MapLibreMap, visible = true): void {
           ["linear"],
           ["coalesce", ["get", "render_height"], ["get", "height"], 8],
           0,
-          "#E5E7EB",
-          18,
-          "#D1D5DB",
-          45,
-          "#BDC5D0",
+          "#E2E8F0",
+          14,
+          "#CBD5E1",
+          32,
+          "#94A3B8",
+          60,
+          "#64748B",
         ],
         "fill-extrusion-height": [
           "interpolate",
@@ -128,7 +130,7 @@ export function apply3dBuildingsLayer(map: MapLibreMap, visible = true): void {
           ["get", "min_height"],
           0,
         ],
-        "fill-extrusion-opacity": 0.96,
+        "fill-extrusion-opacity": 0.9,
         "fill-extrusion-vertical-gradient": false,
       },
     },
@@ -196,27 +198,90 @@ export function applyTerrainAndHillshade(map: MapLibreMap, enabled: boolean): vo
 }
 
 /**
- * Applies flat off-white horizon sky (no glow/atmosphere blend) and subtle
- * directional map lighting for crisp building wall contrast.
+ * Applies crisp daylight highland sky (no haze glow) and warm directional sun
+ * lighting for architectural facade & tree crown contrast.
  */
 export function applyFlatSkyAndLight(map: MapLibreMap, is3d: boolean): void {
   try {
     map.setSky({
-      "sky-color": "#F8F9FA",
-      "horizon-color": "#F8F9FA",
-      "fog-color": "#FFFFFF",
+      "sky-color": "#E0F2FE",
+      "horizon-color": "#F0F9FF",
+      "fog-color": "#F4F6F2",
       "sky-horizon-blend": 0,
       "horizon-fog-blend": 0,
       "atmosphere-blend": 0,
     });
     map.setLight({
       anchor: "map",
-      intensity: is3d ? 0.42 : 0.12,
-      color: "#FFFFFF",
-      position: [1.3, 200, 42],
+      intensity: is3d ? 0.45 : 0.14,
+      color: "#FFFBEB",
+      position: [1.35, 205, 42],
     });
   } catch {
     // Ignore on styles or contexts that do not support sky/light mutations
+  }
+}
+
+/**
+ * Recolors greyscale Positron basemap layers (OpenFreeMap / Carto) into a
+ * vibrant, living Ethiopian urban palette: azure water, lush parks, warm
+ * arterial highways, and crisp residential streets.
+ */
+export function applyVibrantMapTheme(map: MapLibreMap): void {
+  const layers = map.getStyle()?.layers;
+  if (!layers) return;
+
+  for (const layer of layers) {
+    if (layer.id.startsWith("cargo-")) continue;
+
+    try {
+      if (layer.type === "background") {
+        map.setPaintProperty(layer.id, "background-color", "#F4F6F2");
+        continue;
+      }
+
+      if (layer.type === "fill") {
+        if (/water|ocean|lake|river|basin/i.test(layer.id)) {
+          map.setPaintProperty(layer.id, "fill-color", "#BAE6FD");
+          map.setPaintProperty(layer.id, "fill-outline-color", "#7DD3FC");
+          continue;
+        }
+        if (/park|wood|forest|grass|green|vegetation|garden|pitch|cemetery|national_park/i.test(layer.id)) {
+          map.setPaintProperty(layer.id, "fill-color", "#DCFCE7");
+          map.setPaintProperty(layer.id, "fill-opacity", 0.85);
+          continue;
+        }
+        if (/landcover|landuse/i.test(layer.id) && /residential|suburb/i.test(layer.id)) {
+          map.setPaintProperty(layer.id, "fill-color", "#F1F5F9");
+        }
+        continue;
+      }
+
+      if (layer.type === "line") {
+        if (/waterway|river|stream|canal/i.test(layer.id)) {
+          map.setPaintProperty(layer.id, "line-color", "#38BDF8");
+          continue;
+        }
+        if (/highway|motorway|trunk|primary/i.test(layer.id)) {
+          if (/casing/i.test(layer.id)) {
+            map.setPaintProperty(layer.id, "line-color", "#F59E0B");
+            map.setPaintProperty(layer.id, "line-opacity", 0.55);
+          } else {
+            map.setPaintProperty(layer.id, "line-color", "#FEF08A");
+          }
+          continue;
+        }
+        if (/secondary|tertiary/i.test(layer.id)) {
+          map.setPaintProperty(
+            layer.id,
+            "line-color",
+            /casing/i.test(layer.id) ? "#CBD5E1" : "#FFFFFF",
+          );
+        }
+      }
+    } catch {
+      // Ignore individual layers whose style spec disallows a given paint mutation
+    }
   }
 }
 

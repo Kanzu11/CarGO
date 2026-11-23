@@ -40,7 +40,7 @@ export function KpiStrip({ compact = false, className }: KpiStripProps) {
           className,
         )}
       >
-        <div className="flex items-center gap-1.5 px-2.5">
+        <div className="flex items-center gap-1.5 bg-live-soft/45 px-2.5">
           <StatusDot tone="live" size={6} />
           <span className="text-[11px] text-muted">{s.activeFleet}</span>
           <span className="num text-[12px] font-semibold text-ink">
@@ -50,7 +50,7 @@ export function KpiStrip({ compact = false, className }: KpiStripProps) {
 
         <div className="flex items-center gap-1.5 px-2.5">
           <span className="text-[11px] text-muted">{s.tripsInProgress}</span>
-          <span className="num text-[12px] font-semibold text-ink">{kpis.tripsInProgress}</span>
+          <span className="num text-[12px] font-semibold text-live">{kpis.tripsInProgress}</span>
         </div>
 
         <div className="flex items-center gap-1.5 px-2.5">
@@ -60,7 +60,7 @@ export function KpiStrip({ compact = false, className }: KpiStripProps) {
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 px-2.5">
+        <div className="flex items-center gap-1.5 bg-live-soft/35 px-2.5">
           <span className="text-[11px] text-muted">{s.liveVolume}</span>
           <span className="num text-[12px] font-semibold text-live">
             {formatEtb(kpis.liveVolumeEtb, locale)}

@@ -60,12 +60,19 @@ export function DestinationPresets({
             type="button"
             onClick={() => onSelect(place)}
             className={cn(
-              "h-8 shrink-0 whitespace-nowrap rounded-lg border px-2.5 text-[12px] font-medium transition-colors",
+              "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-[12px] font-medium transition-colors",
               active
-                ? "border-brand bg-brand text-white"
+                ? "border-live bg-live-soft text-live"
                 : "border-line bg-canvas text-ink hover:bg-surface",
             )}
           >
+            <span
+              aria-hidden
+              className={cn(
+                "h-1.5 w-1.5 shrink-0 rounded-full",
+                active ? "bg-live" : "bg-[#16A34A]",
+              )}
+            />
             {localizePlaceName(place, locale)}
           </button>
         );

@@ -1,11 +1,12 @@
 "use client";
 
+import type { Tone } from "@/components/ui/Badge";
 import { Badge } from "@/components/ui/Badge";
 import { StatusDot, type DotTone } from "@/components/ui/StatusDot";
 import { cn } from "@/lib/cn";
 import { formatEtb, localizeLandmarkNameString, localizeTier } from "@/lib/i18n";
 import { useFleetStore } from "@/store/useFleetStore";
-import type { Vehicle, VehicleStatus } from "@/types/fleet";
+import type { Tier, Vehicle, VehicleStatus } from "@/types/fleet";
 
 function statusDotTone(status: VehicleStatus): DotTone {
   switch (status) {
@@ -18,6 +19,19 @@ function statusDotTone(status: VehicleStatus): DotTone {
     case "idle":
     case "offline":
       return "idle";
+  }
+}
+
+function tierBadgeTone(tier: Tier, flagged: boolean): Tone {
+  if (flagged) return "danger";
+  switch (tier) {
+    case "bajaj":
+      return "live";
+    case "minivan":
+      return "warn";
+    case "economy":
+    case "cargo":
+      return "neutral";
   }
 }
 
@@ -51,7 +65,7 @@ export function VehicleRow({ vehicle, activeFareEtb, selected, onSelect }: Vehic
           <span className="num font-mono text-[12px] font-semibold text-ink">
             {vehicle.id}
           </span>
-          <Badge tone={vehicle.flagged ? "danger" : "neutral"}>
+          <Badge tone={tierBadgeTone(vehicle.tier, Boolean(vehicle.flagged))}>
             {localizeTier(vehicle.tier, locale).name}
           </Badge>
         </div>

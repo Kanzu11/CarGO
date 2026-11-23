@@ -18,6 +18,7 @@ import {
   applyFlatSkyAndLight,
   applyMapLanguage,
   applyTerrainAndHillshade,
+  applyVibrantMapTheme,
   CAMERA_PRESETS,
   CARTO_POSITRON_STYLE,
   OPENFREEMAP_POSITRON_STYLE,
@@ -29,6 +30,7 @@ import {
   ensureCargoLayers,
   FLEET_SPRITES_LAYER_ID,
   syncFleetLayerMode,
+  updateCityEnvironmentLayers,
   updateRoutesAndPins,
   updateUserLocationLayer,
 } from "@/components/map/mapLayers";
@@ -180,11 +182,13 @@ export default function MapCanvas({
         terrainBlocked: blocked,
         locale: currentLocale,
       } = latestRef.current;
+      applyVibrantMapTheme(map);
       apply3dBuildingsLayer(map, is3d);
       applyFlatSkyAndLight(map, is3d);
       applyTerrainAndHillshade(map, is3d && tier === "full" && !blocked);
       ensureCargoLayers(map, is3d);
       applyMapLanguage(map, currentLocale);
+      updateCityEnvironmentLayers(map, useFleetStore.getState().cityId, currentLocale);
       updateUserLocationLayer(map, useFleetStore.getState().userGeo);
       setMapInstance(map);
       setMapReady(true);
@@ -315,6 +319,13 @@ export default function MapCanvas({
     if (!map || !mapReady) return;
     applyMapLanguage(map, locale);
   }, [mapReady, locale]);
+
+  // Sync procedural 3D trees, parks & landmark dots when city or locale changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    updateCityEnvironmentLayers(map, cityId, locale);
+  }, [mapReady, cityId, locale]);
 
   // Sync live user GPS accuracy ring & dot + fly to exact GPS when switching into Real GPS mode
   const lastGpsCenteredSourceRef = useRef(locationSource);

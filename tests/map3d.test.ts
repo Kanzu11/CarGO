@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CAMERA_PRESETS } from "@/components/map/map3d";
+import { buildCityEnvironmentGeoJson } from "@/components/map/mapTrees";
 import {
   buildFleetPointFeatureCollection,
   buildPin3dPolygon,
@@ -8,6 +9,7 @@ import {
   vehicleStatusColor,
   type InterpolatedVehicle,
 } from "@/components/map/vehicleModels";
+import { CITIES, CITY_ORDER } from "@/lib/cities";
 import { haversineMeters } from "@/lib/geo";
 import { TIER_ORDER } from "@/lib/tiers";
 import type { LngLat } from "@/types/fleet";
@@ -68,5 +70,32 @@ describe("3D map vehicle sprites, pins & geometry", () => {
     expect(CAMERA_PRESETS["flat-2d"].pitch).toBe(0);
     expect(CAMERA_PRESETS["trip-follow"].pitch).toBeLessThanOrEqual(65);
     expect(CAMERA_PRESETS["rider-pickup"].pitch).toBeGreaterThan(0);
+  });
+
+  it("generates parks, 3D trees (trunks + crowns) and localized landmarks for all 4 cities", () => {
+    for (const cityId of CITY_ORDER) {
+      const env = buildCityEnvironmentGeoJson(cityId, "en");
+      expect(env.parks.features.length).toBeGreaterThan(0);
+      expect(env.trees.features.length).toBeGreaterThan(100);
+      expect(env.landmarks.features).toHaveLength(CITIES[cityId].landmarks.length);
+
+      let hasTrunk = false;
+      let hasCrown = false;
+      for (const tree of env.trees.features) {
+        const ring = tree.geometry.coordinates[0]!;
+        expect(ring[0]).toEqual(ring[ring.length - 1]);
+        const base = Number(tree.properties?.base ?? 0);
+        const height = Number(tree.properties?.height ?? 0);
+        expect(height).toBeGreaterThan(base);
+        if (tree.properties?.kind === "trunk") hasTrunk = true;
+        if (tree.properties?.kind === "crown") hasCrown = true;
+      }
+      expect(hasTrunk).toBe(true);
+      expect(hasCrown).toBe(true);
+    }
+
+    const amharicEnv = buildCityEnvironmentGeoJson("adama", "am");
+    const firstLabel = String(amharicEnv.landmarks.features[0]?.properties?.label ?? "");
+    expect(firstLabel).toMatch(/[\u1200-\u137F]/);
   });
 });

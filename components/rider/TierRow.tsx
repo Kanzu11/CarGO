@@ -14,6 +14,29 @@ const TIER_ICONS: Record<Tier, LucideIcon> = {
   cargo: Truck,
 };
 
+const TIER_ACCENTS: Record<Tier, { idle: string; selected: string; activeRow: string }> = {
+  bajaj: {
+    idle: "border-[#A7F3D0] bg-live-soft text-live",
+    selected: "border-live bg-live text-white",
+    activeRow: "border-live border-l-4 bg-live-soft/35",
+  },
+  economy: {
+    idle: "border-line bg-surface text-ink",
+    selected: "border-brand bg-brand text-white",
+    activeRow: "border-brand border-l-4 bg-surface",
+  },
+  minivan: {
+    idle: "border-[#FDE68A] bg-warn-soft text-warn",
+    selected: "border-warn bg-warn text-white",
+    activeRow: "border-warn border-l-4 bg-warn-soft/35",
+  },
+  cargo: {
+    idle: "border-[#BAE6FD] bg-[#E0F2FE] text-[#0369A1]",
+    selected: "border-[#0369A1] bg-[#0369A1] text-white",
+    activeRow: "border-[#0369A1] border-l-4 bg-[#E0F2FE]/45",
+  },
+};
+
 export interface TierRowProps {
   tier: Tier;
   etaMin: number;
@@ -30,6 +53,7 @@ export function TierRow({ tier, etaMin, fareEtb, selected, onSelect }: TierRowPr
   const meta = localizeTier(tier, locale);
   const s = getStrings(locale);
   const Glyph = TIER_ICONS[tier];
+  const accent = TIER_ACCENTS[tier];
 
   return (
     <button
@@ -39,18 +63,14 @@ export function TierRow({ tier, etaMin, fareEtb, selected, onSelect }: TierRowPr
       onClick={onSelect}
       className={cn(
         "flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
-        selected
-          ? "border-brand bg-surface"
-          : "border-line bg-canvas hover:bg-surface",
+        selected ? accent.activeRow : "border-line bg-canvas hover:bg-surface",
       )}
     >
       <div className="flex min-w-0 items-center gap-2.5">
         <span
           className={cn(
-            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border",
-            selected
-              ? "border-brand bg-brand text-white"
-              : "border-line bg-surface text-ink",
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors",
+            selected ? accent.selected : accent.idle,
           )}
         >
           <Icon icon={Glyph} size={18} />
