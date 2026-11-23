@@ -16,7 +16,8 @@ const TIRE_COLOR = "#09090B";
 const HEADLIGHT_COLOR = "#FEF9C3";
 const TAILLIGHT_COLOR = "#DC2626";
 const STROKE_INK = "#111827";
-const SHADOW_FILL = "rgba(17, 24, 39, 0.18)";
+const CONTRAST_HALO = "#FFFFFF";
+const SHADOW_FILL = "rgba(9, 9, 11, 0.34)";
 
 interface PaletteSpec {
   primary: string;
@@ -42,16 +43,16 @@ function paletteFor(tier: Tier, status: VehicleStatus, isPlayerDriver: boolean):
     return { primary: "#09090B", secondary: "#1F2937", roof: "#18181B", rib: "#3F3F46" };
   }
 
-  // Idle fleet vehicles use realistic Ethiopian street livery colors
+  // High-contrast Ethiopian street livery colors for satellite visibility
   switch (tier) {
     case "bajaj":
-      return { primary: "#1F2937", secondary: "#F8F9FA", roof: "#374151", rib: "#111827" };
+      return { primary: "#0284C7", secondary: "#38BDF8", roof: "#E0F2FE", rib: "#0369A1" };
     case "economy":
-      return { primary: "#FFFFFF", secondary: "#E5E7EB", roof: "#F8F9FA", rib: "#CBD5E1" };
+      return { primary: "#FFFFFF", secondary: "#E2E8F0", roof: "#F8FAFC", rib: "#94A3B8" };
     case "minivan":
-      return { primary: "#F3F4F6", secondary: "#D1D5DB", roof: "#FFFFFF", rib: "#CBD5E1" };
+      return { primary: "#F59E0B", secondary: "#FDE68A", roof: "#FEF3C7", rib: "#B45309" };
     case "cargo":
-      return { primary: "#374151", secondary: "#FFFFFF", roof: "#4B5563", rib: "#D1D5DB" };
+      return { primary: "#EA580C", secondary: "#FFFFFF", roof: "#FB923C", rib: "#CBD5E1" };
   }
 }
 
@@ -120,8 +121,25 @@ function drawBajaj(ctx: CanvasRenderingContext2D, pal: PaletteSpec, isShadow: bo
     ctx.stroke();
   }
 
+  // Crisp white contrast outer halo so every vehicle reads cleanly on dark satellite terrain
+  if (!isShadow) {
+    ctx.save();
+    ctx.lineWidth = 5;
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = CONTRAST_HALO;
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // Wider rounded rear passenger canopy
   drawRoundRect(ctx, 43, 49, 42, 46, [8, 8, 12, 12]);
+  if (!isShadow) {
+    ctx.save();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = CONTRAST_HALO;
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.fillStyle = fill(pal.primary);
   ctx.fill();
   if (!isShadow) {
@@ -199,6 +217,13 @@ function drawEconomySedan(ctx: CanvasRenderingContext2D, pal: PaletteSpec, isSha
 
   // Sculpted sedan body
   drawRoundRect(ctx, 43, 18, 42, 92, [15, 15, 11, 11]);
+  if (!isShadow) {
+    ctx.save();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = CONTRAST_HALO;
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.fillStyle = fill(pal.primary);
   ctx.fill();
 
@@ -312,6 +337,13 @@ function drawMinivan(ctx: CanvasRenderingContext2D, pal: PaletteSpec, isShadow: 
 
   // Long van silhouette
   drawRoundRect(ctx, 41, 14, 46, 100, [11, 11, 8, 8]);
+  if (!isShadow) {
+    ctx.save();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = CONTRAST_HALO;
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.fillStyle = fill(pal.primary);
   ctx.fill();
 
@@ -399,6 +431,13 @@ function drawCargoTruck(ctx: CanvasRenderingContext2D, pal: PaletteSpec, isShado
 
   // Forward cab-over unit
   drawRoundRect(ctx, 42, 13, 44, 31, [9, 9, 4, 4]);
+  if (!isShadow) {
+    ctx.save();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = CONTRAST_HALO;
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.fillStyle = fill(pal.primary);
   ctx.fill();
   if (!isShadow) {
@@ -415,6 +454,13 @@ function drawCargoTruck(ctx: CanvasRenderingContext2D, pal: PaletteSpec, isShado
   // Corrugated rectangular cargo box
   const boxFill = pal.primary === "#374151" ? "#FFFFFF" : pal.secondary;
   drawRoundRect(ctx, 39, 48, 50, 68, [4, 4, 4, 4]);
+  if (!isShadow) {
+    ctx.save();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = CONTRAST_HALO;
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.fillStyle = fill(boxFill);
   ctx.fill();
 

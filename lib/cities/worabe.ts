@@ -2,22 +2,22 @@ import type { CityConfig } from "@/types/fleet";
 
 /**
  * Worabe — Central Ethiopia regional corridor town.
- * Center: [38.1986, 7.8481].
- * Covers Worabe University, Bus Station, Main Market, Worabe Comprehensive
- * Specialized Hospital, Central Roundabout, and the Addis–Hossana highway spine.
+ * Center: [38.1818, 7.8435].
+ * Aligned directly over the Addis–Hossana yellow highway spine, northern Worabe
+ * junction, and the dense K'ALI K'ESA BOTA central town grid.
  */
 export const WORABE_CITY: CityConfig = {
   id: "worabe",
   name: "Worabe",
   region: "Central Ethiopia",
   platePrefix: "CE",
-  center: [38.1986, 7.8481],
-  zoom: 14.5,
-  pitch: 48,
-  bearing: -8,
+  center: [38.1818, 7.8435],
+  zoom: 14.7,
+  pitch: 52,
+  bearing: -14,
   bounds: [
-    [38.175, 7.825],
-    [38.222, 7.872],
+    [38.165, 7.825],
+    [38.198, 7.865],
   ],
   landmarks: [
     {
@@ -25,7 +25,7 @@ export const WORABE_CITY: CityConfig = {
       name: "Worabe University",
       neighborhood: "University Quarter",
       tag: "Main Gate",
-      coords: [38.2068, 7.8585],
+      coords: [38.1892, 7.8562],
       kind: "landmark",
     },
     {
@@ -33,7 +33,7 @@ export const WORABE_CITY: CityConfig = {
       name: "Bus Station",
       neighborhood: "Menaheria",
       tag: "Taxi Stand",
-      coords: [38.1968, 7.8465],
+      coords: [38.1868, 7.8518],
       kind: "landmark",
     },
     {
@@ -41,7 +41,7 @@ export const WORABE_CITY: CityConfig = {
       name: "Main Market",
       neighborhood: "Gebeya",
       tag: "Taxi Stand",
-      coords: [38.1938, 7.8498],
+      coords: [38.1795, 7.8392],
       kind: "landmark",
     },
     {
@@ -49,7 +49,7 @@ export const WORABE_CITY: CityConfig = {
       name: "Hospital",
       neighborhood: "Referral Quarter",
       tag: "Main Gate",
-      coords: [38.2028, 7.8422],
+      coords: [38.1748, 7.8352],
       kind: "landmark",
     },
   ],
@@ -59,7 +59,7 @@ export const WORABE_CITY: CityConfig = {
       name: "Central Roundabout",
       neighborhood: "City Center",
       tag: "Roundabout",
-      coords: [38.1986, 7.8481],
+      coords: [38.1842, 7.8435],
       kind: "neighborhood",
     },
     {
@@ -67,7 +67,7 @@ export const WORABE_CITY: CityConfig = {
       name: "Silte Zone Admin Square",
       neighborhood: "Civic Center",
       tag: "Beside Bank",
-      coords: [38.2022, 7.8518],
+      coords: [38.1825, 7.8468],
       kind: "neighborhood",
     },
     {
@@ -75,7 +75,7 @@ export const WORABE_CITY: CityConfig = {
       name: "Alkeso Junction",
       neighborhood: "North Gate",
       tag: "Roundabout",
-      coords: [38.2015, 7.8565],
+      coords: [38.1882, 7.8542],
       kind: "neighborhood",
     },
     {
@@ -83,26 +83,26 @@ export const WORABE_CITY: CityConfig = {
       name: "Hossana Highway Gate",
       neighborhood: "South Worabe",
       tag: "Main Gate",
-      coords: [38.1952, 7.8388],
+      coords: [38.1718, 7.8322],
       kind: "neighborhood",
     },
   ],
   graph: {
     nodes: {
-      W01: [38.1952, 7.8388], // South Highway Gate
-      W02: [38.1968, 7.8465], // Bus Station
-      W03: [38.1986, 7.8481], // Central Roundabout
-      W04: [38.2022, 7.8518], // Zone Admin Square
-      W05: [38.2015, 7.8565], // Alkeso Junction
-      W06: [38.2068, 7.8585], // Worabe University
-      W07: [38.1938, 7.8498], // Main Market
-      W08: [38.1918, 7.8445], // West Market Road
-      W09: [38.1965, 7.8538], // North Market Collector
-      W10: [38.2028, 7.8422], // Hospital
-      W11: [38.2055, 7.8475], // East Hospital Loop
-      W12: [38.2072, 7.8532], // East Campus Approach
-      W13: [38.1988, 7.8425], // South Civic Connector
-      W14: [38.2042, 7.8612], // North Campus Loop
+      W01: [38.1718, 7.8322], // Hossana Highway Gate (SW)
+      W02: [38.1868, 7.8518], // Bus Station (North Worabe Hub)
+      W03: [38.1842, 7.8435], // Central Roundabout (Highway Bend)
+      W04: [38.1825, 7.8468], // Silte Zone Admin Square
+      W05: [38.1882, 7.8542], // Alkeso Junction
+      W06: [38.1892, 7.8562], // Worabe University
+      W07: [38.1795, 7.8392], // Main Market (K'ali K'esa Bota Grid)
+      W08: [38.1768, 7.8415], // West Market Grid Avenue
+      W09: [38.1835, 7.8502], // North Town Collector
+      W10: [38.1748, 7.8352], // Hospital (SW Grid)
+      W11: [38.1818, 7.8368], // SE Town Grid
+      W12: [38.1858, 7.8412], // East Highway Connector
+      W13: [38.1775, 7.8372], // Central Spine Highway
+      W14: [38.1862, 7.8555], // North Campus Loop
     },
     edges: [
       // Main North-South highway spine

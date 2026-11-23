@@ -148,13 +148,15 @@ function buildBox3dPolygon(
   color: string,
   id: string,
 ): Feature<Polygon> {
-  const hl = lengthM / 2;
-  const hw = widthM / 2;
+  const fwd = forwardOffsetM * 1.5;
+  const rgt = rightOffsetM * 1.5;
+  const hl = (lengthM * 1.6) / 2;
+  const hw = (widthM * 1.6) / 2;
   const corners: [number, number][] = [
-    [forwardOffsetM + hl, rightOffsetM + hw],
-    [forwardOffsetM + hl, rightOffsetM - hw],
-    [forwardOffsetM - hl, rightOffsetM - hw],
-    [forwardOffsetM - hl, rightOffsetM + hw],
+    [fwd + hl, rgt + hw],
+    [fwd + hl, rgt - hw],
+    [fwd - hl, rgt - hw],
+    [fwd - hl, rgt + hw],
   ];
   const ring = corners.map(([f, r]) => localMetersToLngLat(origin, f, r, bearingDeg));
   ring.push(ring[0]!);

@@ -732,7 +732,7 @@ export const useFleetStore = create<FleetStoreState>()(
       },
     }),
     {
-      name: "cargo-fleet-storage-v2",
+      name: "cargo-fleet-storage-v3",
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
       partialize: (state) => ({

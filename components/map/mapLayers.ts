@@ -202,41 +202,6 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
     });
   }
 
-  if (!map.getLayer(FLEET_SPRITES_LAYER_ID)) {
-    map.addLayer({
-      id: FLEET_SPRITES_LAYER_ID,
-      type: "symbol",
-      source: FLEET_POINTS_SOURCE_ID,
-      layout: {
-        visibility: is3d ? "none" : "visible",
-        "icon-image": ["get", "spriteKey"],
-        "icon-rotate": ["get", "bearing"],
-        "icon-rotation-alignment": "map",
-        "icon-pitch-alignment": "map",
-        "icon-allow-overlap": true,
-        "icon-ignore-placement": true,
-        "icon-size": [
-          "interpolate",
-          ["exponential", 1.5],
-          ["zoom"],
-          11,
-          0.36,
-          13,
-          0.56,
-          14.5,
-          0.82,
-          16,
-          1.08,
-          17.5,
-          1.38,
-        ],
-      },
-      paint: {
-        "icon-opacity": 1,
-      },
-    });
-  }
-
   if (!map.getLayer(FLEET_3D_LAYER_ID)) {
     map.addLayer(
       {
@@ -257,6 +222,41 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
       },
       beforeSymbol,
     );
+  }
+
+  if (!map.getLayer(FLEET_SPRITES_LAYER_ID)) {
+    map.addLayer({
+      id: FLEET_SPRITES_LAYER_ID,
+      type: "symbol",
+      source: FLEET_POINTS_SOURCE_ID,
+      layout: {
+        visibility: "visible",
+        "icon-image": ["get", "spriteKey"],
+        "icon-rotate": ["get", "bearing"],
+        "icon-rotation-alignment": "map",
+        "icon-pitch-alignment": "map",
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-size": [
+          "interpolate",
+          ["exponential", 1.5],
+          ["zoom"],
+          11,
+          0.52,
+          13,
+          0.78,
+          14.5,
+          1.05,
+          16,
+          1.3,
+          17.2,
+          1.55,
+        ],
+      },
+      paint: {
+        "icon-opacity": 1,
+      },
+    });
   }
 
   if (!map.getLayer(PINS_3D_STEM_LAYER_ID)) {
@@ -345,7 +345,7 @@ export function syncFleetLayerMode(map: MapLibreMap, is3d: boolean): void {
     map.setLayoutProperty(FLEET_3D_LAYER_ID, "visibility", is3d ? "visible" : "none");
   }
   if (map.getLayer(FLEET_SPRITES_LAYER_ID)) {
-    map.setLayoutProperty(FLEET_SPRITES_LAYER_ID, "visibility", is3d ? "none" : "visible");
+    map.setLayoutProperty(FLEET_SPRITES_LAYER_ID, "visibility", "visible");
   }
 }
 
