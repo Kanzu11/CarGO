@@ -53,7 +53,7 @@ export function TopBar() {
           <HydrationGate
             fallback={
               <span className="inline-flex h-8 items-center rounded-lg border border-line px-2.5 text-[13px] font-medium text-ink">
-                Adama
+                Addis Ababa
               </span>
             }
           >

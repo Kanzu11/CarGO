@@ -1,4 +1,4 @@
-import type { Map as MapLibreMap } from "maplibre-gl";
+import type { LayerSpecification, Map as MapLibreMap } from "maplibre-gl";
 import type { Locale } from "@/types/fleet";
 
 export const OPENFREEMAP_POSITRON_STYLE = "https://tiles.openfreemap.org/styles/positron";
@@ -8,6 +8,10 @@ export const ESRI_WORLD_IMAGERY_TILES =
   "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 export const AWS_TERRARIUM_TILES =
   "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
+
+export const SATELLITE_MAX_ZOOM = 17;
+export const MAP_MIN_ZOOM = 11.5;
+export const MAP_MAX_ZOOM = 17.2;
 
 export const SATELLITE_SOURCE_ID = "cargo-satellite-imagery";
 export const SATELLITE_LAYER_ID = "cargo-satellite-layer";
@@ -56,21 +60,94 @@ export function findFirstSymbolLayerId(map: MapLibreMap): string | undefined {
   return layers.find((layer) => layer.type === "symbol")?.id;
 }
 
-/**
- * Synthetic grey 3D building boxes obscure real satellite rooftops and trees,
- * so hide any active extrusion layer in hybrid satellite mode.
- */
-export function apply3dBuildingsLayer(map: MapLibreMap, visible = false): void {
-  void visible;
-  if (map.getLayer(BUILDINGS_3D_LAYER_ID)) {
-    map.setLayoutProperty(BUILDINGS_3D_LAYER_ID, "visibility", "none");
+interface BuildingSourceRef {
+  source: string;
+  sourceLayer: string;
+}
+
+function detectBuildingSource(layers: ReadonlyArray<LayerSpecification>): BuildingSourceRef | null {
+  for (const layer of layers) {
+    if (layer.type !== "fill") continue;
+    const candidate = layer as LayerSpecification & {
+      source?: string;
+      "source-layer"?: string;
+    };
+    const sourceLayer = candidate["source-layer"];
+    if (candidate.source && (sourceLayer === "building" || sourceLayer === "buildings")) {
+      return { source: candidate.source, sourceLayer };
+    }
   }
+  return null;
+}
+
+/**
+ * Adds shaded OSM 3D building extrusions on top of the Hybrid Satellite View
+ * (works on both OpenFreeMap `building` and Carto `buildings` vector sources).
+ */
+export function apply3dBuildingsLayer(map: MapLibreMap, visible = true): void {
+  const style = map.getStyle();
+  if (!style?.layers) return;
+
+  if (map.getLayer(BUILDINGS_3D_LAYER_ID)) {
+    setBuildingsVisibility(map, visible);
+    return;
+  }
+
+  const buildingRef = detectBuildingSource(style.layers);
+  if (!buildingRef) return;
+
+  const beforeId = findFirstSymbolLayerId(map);
+
+  map.addLayer(
+    {
+      id: BUILDINGS_3D_LAYER_ID,
+      type: "fill-extrusion",
+      source: buildingRef.source,
+      "source-layer": buildingRef.sourceLayer,
+      minzoom: 12,
+      layout: {
+        visibility: visible ? "visible" : "none",
+      },
+      paint: {
+        "fill-extrusion-color": [
+          "interpolate",
+          ["linear"],
+          ["coalesce", ["get", "render_height"], ["get", "height"], 11],
+          0,
+          "#D6D3D1",
+          12,
+          "#E7E5E4",
+          28,
+          "#CBD5E1",
+          55,
+          "#94A3B8",
+        ],
+        "fill-extrusion-height": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          12,
+          0,
+          13.2,
+          ["coalesce", ["get", "render_height"], ["get", "height"], 11],
+        ],
+        "fill-extrusion-base": [
+          "coalesce",
+          ["get", "render_min_height"],
+          ["get", "min_height"],
+          0,
+        ],
+        "fill-extrusion-opacity": 0.88,
+        "fill-extrusion-vertical-gradient": true,
+      },
+    },
+    beforeId,
+  );
 }
 
 export function setBuildingsVisibility(map: MapLibreMap, visible: boolean): void {
-  void visible;
   if (!map.getLayer(BUILDINGS_3D_LAYER_ID)) return;
-  map.setLayoutProperty(BUILDINGS_3D_LAYER_ID, "visibility", "none");
+  map.setLayoutProperty(BUILDINGS_3D_LAYER_ID, "visibility", visible ? "visible" : "none");
 }
 
 /**
@@ -142,9 +219,9 @@ export function applyFlatSkyAndLight(map: MapLibreMap, is3d: boolean): void {
     });
     map.setLight({
       anchor: "map",
-      intensity: is3d ? 0.3 : 0.14,
-      color: "#FFFFFF",
-      position: [1.35, 205, 42],
+      intensity: is3d ? 0.55 : 0.16,
+      color: "#FFFBEB",
+      position: [1.4, 210, 38],
     });
   } catch {
     // Ignore on styles or contexts that do not support sky/light mutations
@@ -153,8 +230,9 @@ export function applyFlatSkyAndLight(map: MapLibreMap, is3d: boolean): void {
 
 /**
  * Transforms the vector Positron basemap into a crisp Hybrid Satellite View:
- * mounts Esri World Imagery aerial tiles beneath transparent road/waterway
- * overlays and high-contrast white haloed street & city labels.
+ * mounts Esri World Imagery aerial tiles (capped at zoom 17 so MapLibre
+ * overzooms clean photography instead of fetching missing-data tiles) beneath
+ * translucent roads and high-contrast white haloed labels.
  */
 export function applySatelliteHybridTheme(map: MapLibreMap): void {
   const layers = map.getStyle()?.layers;
@@ -165,7 +243,7 @@ export function applySatelliteHybridTheme(map: MapLibreMap): void {
       type: "raster",
       tiles: [ESRI_WORLD_IMAGERY_TILES],
       tileSize: 256,
-      maxzoom: 19,
+      maxzoom: SATELLITE_MAX_ZOOM,
       attribution: "Esri, Maxar, Earthstar Geographics",
     });
   }

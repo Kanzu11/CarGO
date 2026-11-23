@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { CAMERA_PRESETS, ESRI_WORLD_IMAGERY_TILES } from "@/components/map/map3d";
-import { buildCityLandmarksGeoJson } from "@/components/map/mapTrees";
+import {
+  CAMERA_PRESETS,
+  ESRI_WORLD_IMAGERY_TILES,
+  MAP_MAX_ZOOM,
+  SATELLITE_MAX_ZOOM,
+} from "@/components/map/map3d";
+import { buildCity3dSceneGeoJson } from "@/components/map/mapTrees";
 import {
   buildFleetPointFeatureCollection,
   buildPin3dPolygon,
@@ -72,20 +77,29 @@ describe("3D map vehicle sprites, pins & geometry", () => {
     expect(CAMERA_PRESETS["rider-pickup"].pitch).toBeGreaterThan(0);
   });
 
-  it("configures Esri World Imagery satellite tiles and localized landmark anchors for all 4 cities", () => {
+  it("clamps satellite zoom cleanly and builds 3D Addis Ababa buildings, park trees & landmarks", () => {
     expect(ESRI_WORLD_IMAGERY_TILES).toContain("World_Imagery/MapServer/tile/{z}/{y}/{x}");
+    expect(SATELLITE_MAX_ZOOM).toBe(17);
+    expect(MAP_MAX_ZOOM).toBeLessThanOrEqual(17.5);
+
+    const addisScene = buildCity3dSceneGeoJson("addis", "en");
+    expect(addisScene.buildings.features.length).toBeGreaterThan(30);
+    expect(addisScene.trees.features.length).toBeGreaterThan(80);
+    expect(addisScene.landmarks.features).toHaveLength(CITIES.addis.landmarks.length);
 
     for (const cityId of CITY_ORDER) {
-      const landmarks = buildCityLandmarksGeoJson(cityId, "en");
-      expect(landmarks.features).toHaveLength(CITIES[cityId].landmarks.length);
-      for (const feat of landmarks.features) {
+      const scene = buildCity3dSceneGeoJson(cityId, "en");
+      expect(scene.buildings.features.length).toBeGreaterThan(10);
+      expect(scene.trees.features.length).toBeGreaterThan(20);
+      expect(scene.landmarks.features).toHaveLength(CITIES[cityId].landmarks.length);
+      for (const feat of scene.landmarks.features) {
         expect(feat.geometry.type).toBe("Point");
         expect(feat.properties?.label).toBeTruthy();
       }
     }
 
-    const amharicLandmarks = buildCityLandmarksGeoJson("adama", "am");
-    const firstLabel = String(amharicLandmarks.features[0]?.properties?.label ?? "");
+    const amharicScene = buildCity3dSceneGeoJson("addis", "am");
+    const firstLabel = String(amharicScene.landmarks.features[0]?.properties?.label ?? "");
     expect(firstLabel).toMatch(/[\u1200-\u137F]/);
   });
 });

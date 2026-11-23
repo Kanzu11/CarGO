@@ -5,7 +5,7 @@ import { WORABE_CITY } from "@/lib/cities/worabe";
 import { haversineKm, haversineMeters } from "@/lib/geo";
 import type { CityConfig, CityId, LngLat, Place } from "@/types/fleet";
 
-export const CITY_ORDER: ReadonlyArray<CityId> = ["adama", "addis", "hawassa", "worabe"];
+export const CITY_ORDER: ReadonlyArray<CityId> = ["addis", "adama", "hawassa", "worabe"];
 
 export const CITIES: Record<CityId, CityConfig> = {
   adama: ADAMA_CITY,
@@ -14,7 +14,7 @@ export const CITIES: Record<CityId, CityConfig> = {
   worabe: WORABE_CITY,
 };
 
-export const DEFAULT_CITY_ID: CityId = "adama";
+export const DEFAULT_CITY_ID: CityId = "addis";
 
 export function getCityConfig(cityId: CityId): CityConfig {
   return CITIES[cityId];

@@ -150,7 +150,7 @@ export const useFleetStore = create<FleetStoreState>()(
       cityId: DEFAULT_CITY_ID,
       locale: "en",
       mode: "rider",
-      map3dEnabled: false,
+      map3dEnabled: true,
       locationSource: "simulated",
       geoStatus: "idle",
       userGeo: null,
@@ -730,7 +730,7 @@ export const useFleetStore = create<FleetStoreState>()(
       },
     }),
     {
-      name: "cargo-fleet-storage-v1",
+      name: "cargo-fleet-storage-v2",
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
       partialize: (state) => ({

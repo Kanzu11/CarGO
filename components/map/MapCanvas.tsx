@@ -21,6 +21,8 @@ import {
   applyTerrainAndHillshade,
   CAMERA_PRESETS,
   CARTO_POSITRON_STYLE,
+  MAP_MAX_ZOOM,
+  MAP_MIN_ZOOM,
   OPENFREEMAP_POSITRON_STYLE,
   rewriteCartoGlyphUrl,
   setBuildingsVisibility,
@@ -152,7 +154,12 @@ export default function MapCanvas({
       container,
       style: OPENFREEMAP_POSITRON_STYLE,
       center: initialCity.center,
-      zoom: variant === "dispatch" ? initialCity.zoom - 0.5 : initialCity.zoom + 0.5,
+      zoom: Math.min(
+        16.5,
+        variant === "dispatch" ? initialCity.zoom - 0.5 : initialCity.zoom + 0.5,
+      ),
+      minZoom: MAP_MIN_ZOOM,
+      maxZoom: MAP_MAX_ZOOM,
       pitch: initial3d ? preset.pitch : 0,
       bearing: initial3d ? initialCity.bearing : 0,
       maxPitch: 68,
@@ -374,7 +381,9 @@ export default function MapCanvas({
 
     map.flyTo({
       center: useGpsCenter ? userGeo.coords : city.center,
-      zoom: useGpsCenter ? 16.4 : variant === "dispatch" ? city.zoom - 0.5 : city.zoom + 0.5,
+      zoom: useGpsCenter
+        ? 16.4
+        : Math.min(16.5, variant === "dispatch" ? city.zoom - 0.5 : city.zoom + 0.5),
       pitch: map3dEnabled ? preset.pitch : 0,
       bearing: map3dEnabled ? city.bearing : 0,
       duration: 1100,
