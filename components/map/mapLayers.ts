@@ -2,7 +2,10 @@ import type { Feature, FeatureCollection, LineString, Point, Polygon } from "geo
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { findFirstSymbolLayerId } from "@/components/map/map3d";
 import { buildCity3dSceneGeoJson } from "@/components/map/mapTrees";
-import { buildPin3dPolygon, localMetersToLngLat } from "@/components/map/vehicleModels";
+import {
+  buildPin3dFeatures,
+  localMetersToLngLat,
+} from "@/components/map/vehicleModels";
 import { registerVehicleSprites } from "@/components/map/vehicleSprites";
 import type { CityId, LngLat, Locale, Trip, UserGeoPosition } from "@/types/fleet";
 
@@ -13,6 +16,7 @@ export const ROUTES_SOURCE_ID = "cargo-routes";
 export const PINS_3D_SOURCE_ID = "cargo-pins-3d";
 export const PINS_POINTS_SOURCE_ID = "cargo-pins-points";
 export const FLEET_POINTS_SOURCE_ID = "cargo-fleet-points";
+export const FLEET_3D_SOURCE_ID = "cargo-fleet-3d";
 export const USER_ACCURACY_SOURCE_ID = "cargo-user-accuracy";
 export const USER_DOT_SOURCE_ID = "cargo-user-dot";
 
@@ -24,6 +28,7 @@ export const ROUTE_HALO_LAYER_ID = "cargo-route-halo";
 export const ROUTE_CASING_LAYER_ID = "cargo-route-casing";
 export const ROUTE_MAIN_LAYER_ID = "cargo-route-main";
 export const FLEET_SPRITES_LAYER_ID = "cargo-fleet-sprites-layer";
+export const FLEET_3D_LAYER_ID = "cargo-fleet-3d-layer";
 export const USER_ACCURACY_LAYER_ID = "cargo-user-accuracy-layer";
 export const USER_ACCURACY_BORDER_LAYER_ID = "cargo-user-accuracy-border";
 export const USER_DOT_LAYER_ID = "cargo-user-dot-layer";
@@ -57,6 +62,7 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
   ensureGeoJsonSource(map, PINS_3D_SOURCE_ID);
   ensureGeoJsonSource(map, PINS_POINTS_SOURCE_ID);
   ensureGeoJsonSource(map, FLEET_POINTS_SOURCE_ID);
+  ensureGeoJsonSource(map, FLEET_3D_SOURCE_ID);
   ensureGeoJsonSource(map, USER_ACCURACY_SOURCE_ID);
   ensureGeoJsonSource(map, USER_DOT_SOURCE_ID);
 
@@ -202,6 +208,7 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
       type: "symbol",
       source: FLEET_POINTS_SOURCE_ID,
       layout: {
+        visibility: is3d ? "none" : "visible",
         "icon-image": ["get", "spriteKey"],
         "icon-rotate": ["get", "bearing"],
         "icon-rotation-alignment": "map",
@@ -230,6 +237,28 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
     });
   }
 
+  if (!map.getLayer(FLEET_3D_LAYER_ID)) {
+    map.addLayer(
+      {
+        id: FLEET_3D_LAYER_ID,
+        type: "fill-extrusion",
+        source: FLEET_3D_SOURCE_ID,
+        minzoom: 11.5,
+        layout: {
+          visibility: is3d ? "visible" : "none",
+        },
+        paint: {
+          "fill-extrusion-color": ["get", "color"],
+          "fill-extrusion-height": ["get", "height"],
+          "fill-extrusion-base": ["get", "base"],
+          "fill-extrusion-vertical-gradient": true,
+          "fill-extrusion-opacity": 0.96,
+        },
+      },
+      beforeSymbol,
+    );
+  }
+
   if (!map.getLayer(PINS_3D_STEM_LAYER_ID)) {
     map.addLayer({
       id: PINS_3D_STEM_LAYER_ID,
@@ -241,9 +270,9 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
       paint: {
         "fill-extrusion-color": ["get", "color"],
         "fill-extrusion-height": ["get", "height"],
-        "fill-extrusion-base": 0,
-        "fill-extrusion-vertical-gradient": false,
-        "fill-extrusion-opacity": 0.95,
+        "fill-extrusion-base": ["coalesce", ["get", "base"], 0],
+        "fill-extrusion-vertical-gradient": true,
+        "fill-extrusion-opacity": 0.96,
       },
     });
   }
@@ -311,6 +340,12 @@ export function syncFleetLayerMode(map: MapLibreMap, is3d: boolean): void {
   }
   if (map.getLayer(ENV_TREES_LAYER_ID)) {
     map.setLayoutProperty(ENV_TREES_LAYER_ID, "visibility", is3d ? "visible" : "none");
+  }
+  if (map.getLayer(FLEET_3D_LAYER_ID)) {
+    map.setLayoutProperty(FLEET_3D_LAYER_ID, "visibility", is3d ? "visible" : "none");
+  }
+  if (map.getLayer(FLEET_SPRITES_LAYER_ID)) {
+    map.setLayoutProperty(FLEET_SPRITES_LAYER_ID, "visibility", is3d ? "none" : "visible");
   }
 }
 
@@ -387,7 +422,7 @@ export function updateRoutesAndPins(map: MapLibreMap, data: RouteAndPinUpdate): 
     const pointFeatures: Feature<Point>[] = [];
 
     if (data.pickupPin) {
-      stemFeatures.push(buildPin3dPolygon(data.pickupPin, 2.2, 22, "#09090B", "pickup"));
+      stemFeatures.push(...buildPin3dFeatures(data.pickupPin, "#09090B", "#FFFFFF", "pickup"));
       pointFeatures.push({
         type: "Feature",
         properties: { kind: "pickup", color: "#09090B" },
@@ -396,10 +431,10 @@ export function updateRoutesAndPins(map: MapLibreMap, data: RouteAndPinUpdate): 
     }
 
     if (data.dropoffPin) {
-      stemFeatures.push(buildPin3dPolygon(data.dropoffPin, 2.4, 26, "#047857", "dropoff"));
+      stemFeatures.push(...buildPin3dFeatures(data.dropoffPin, "#10B981", "#064E3B", "dropoff"));
       pointFeatures.push({
         type: "Feature",
-        properties: { kind: "dropoff", color: "#047857" },
+        properties: { kind: "dropoff", color: "#10B981" },
         geometry: { type: "Point", coordinates: data.dropoffPin },
       });
     }

@@ -168,7 +168,7 @@ export const useFleetStore = create<FleetStoreState>()(
       riderStep: "location",
       pickup: defaultPickupForCity(DEFAULT_CITY_ID),
       destination: defaultDestinationForCity(DEFAULT_CITY_ID),
-      pickingTarget: "pickup",
+      pickingTarget: "destination",
       landmarkChip: "Main Gate",
       customLandmarkNote: "",
       selectedTier: "bajaj",
@@ -328,19 +328,20 @@ export const useFleetStore = create<FleetStoreState>()(
       },
 
       setPickup: (place) => {
-        set({
+        set((state) => ({
           locationSource: "simulated",
           pickup: place,
-          landmarkChip: (place.tag as LandmarkChip) ?? get().landmarkChip,
-        });
+          pickingTarget: state.riderStep === "location" ? "destination" : state.pickingTarget,
+          landmarkChip: (place.tag as LandmarkChip) ?? state.landmarkChip,
+        }));
       },
 
       setPickupFromCoords: (coords) => {
-        const { cityId, locationSource, userGeo } = get();
+        const { cityId, locationSource, userGeo, riderStep, pickingTarget } = get();
         if (
           locationSource === "real" &&
           userGeo &&
-          haversineMeters(coords, userGeo.coords) <= 60
+          haversineMeters(coords, userGeo.coords) <= 45
         ) {
           return;
         }
@@ -359,6 +360,7 @@ export const useFleetStore = create<FleetStoreState>()(
             coords,
             kind: "custom",
           },
+          pickingTarget: riderStep === "location" ? "destination" : pickingTarget,
         });
       },
 
@@ -382,7 +384,7 @@ export const useFleetStore = create<FleetStoreState>()(
             coords,
             kind: "custom",
           },
-          pickingTarget: "pickup",
+          pickingTarget: "destination",
         });
       },
 

@@ -7,7 +7,9 @@ import {
 } from "@/components/map/map3d";
 import { buildCity3dSceneGeoJson } from "@/components/map/mapTrees";
 import {
+  buildFleet3dFeatureCollection,
   buildFleetPointFeatureCollection,
+  buildPin3dFeatures,
   buildPin3dPolygon,
   localMetersToLngLat,
   vehicleSpriteKey,
@@ -75,6 +77,18 @@ describe("3D map vehicle sprites, pins & geometry", () => {
     expect(CAMERA_PRESETS["flat-2d"].pitch).toBe(0);
     expect(CAMERA_PRESETS["trip-follow"].pitch).toBeLessThanOrEqual(65);
     expect(CAMERA_PRESETS["rider-pickup"].pitch).toBeGreaterThan(0);
+
+    // 3D fleet vehicles & 3-part 3D pins
+    const fleet3d = buildFleet3dFeatureCollection([
+      { id: "V1", tier: "bajaj", status: "on_trip", position: origin, bearing: 45, plate: "AA 3-A10001", selected: true },
+      { id: "V2", tier: "economy", status: "idle", position: origin, bearing: 90, plate: "AA 3-B20002", selected: false },
+      { id: "V3", tier: "minivan", status: "enroute_pickup", position: origin, bearing: 180, plate: "AA 1-C30003", selected: false },
+      { id: "V4", tier: "cargo", status: "alert", position: origin, bearing: 270, plate: "AA 3-A40004", selected: false },
+    ]);
+    expect(fleet3d.features.length).toBeGreaterThanOrEqual(18);
+    const pinParts = buildPin3dFeatures(origin, "#10B981", "#064E3B", "dropoff");
+    expect(pinParts).toHaveLength(3);
+    expect(pinParts[2]?.properties?.height).toBe(25);
   });
 
   it("clamps satellite zoom cleanly and builds 3D Addis Ababa buildings, park trees & landmarks", () => {

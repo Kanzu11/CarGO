@@ -30,6 +30,8 @@ import {
 } from "@/components/map/map3d";
 import {
   ensureCargoLayers,
+  ENV_LANDMARKS_LAYER_ID,
+  FLEET_3D_LAYER_ID,
   FLEET_SPRITES_LAYER_ID,
   syncFleetLayerMode,
   updateCityEnvironmentLayers,
@@ -95,6 +97,8 @@ export default function MapCanvas({
   const userGeo = useFleetStore((s) => s.userGeo);
   const map3dEnabled = useFleetStore((s) => s.map3dEnabled);
   const setMap3dEnabled = useFleetStore((s) => s.setMap3dEnabled);
+  const trafficEnabled = useFleetStore((s) => s.trafficEnabled);
+  const setTrafficEnabled = useFleetStore((s) => s.setTrafficEnabled);
   const trips = useFleetStore((s) => s.trips);
   const activeRiderTripId = useFleetStore((s) => s.activeRiderTripId);
   const activeDriverTripId = useFleetStore((s) => s.activeDriverTripId);
@@ -250,16 +254,31 @@ export default function MapCanvas({
     });
 
     map.on("click", (event: MapMouseEvent) => {
-      if (map.getLayer(FLEET_SPRITES_LAYER_ID)) {
-        const hit = map.queryRenderedFeatures(event.point, {
-          layers: [FLEET_SPRITES_LAYER_ID],
-        })[0];
+      const fleetLayers = [FLEET_3D_LAYER_ID, FLEET_SPRITES_LAYER_ID].filter((id) =>
+        Boolean(map.getLayer(id)),
+      );
+      if (fleetLayers.length > 0) {
+        const hit = map.queryRenderedFeatures(event.point, { layers: fleetLayers })[0];
         const vehicleId = hit?.properties?.id as string | undefined;
         if (vehicleId) {
           latestRef.current.onVehicleClick?.(vehicleId);
           return;
         }
       }
+
+      if (latestRef.current.onMapClick && map.getLayer(ENV_LANDMARKS_LAYER_ID)) {
+        const landmarkHit = map.queryRenderedFeatures(event.point, {
+          layers: [ENV_LANDMARKS_LAYER_ID],
+        })[0];
+        if (landmarkHit?.geometry.type === "Point") {
+          const [lng, lat] = landmarkHit.geometry.coordinates;
+          if (typeof lng === "number" && typeof lat === "number") {
+            latestRef.current.onMapClick([Number(lng.toFixed(6)), Number(lat.toFixed(6))]);
+            return;
+          }
+        }
+      }
+
       latestRef.current.onMapClick?.([
         Number(event.lngLat.lng.toFixed(6)),
         Number(event.lngLat.lat.toFixed(6)),
@@ -267,11 +286,18 @@ export default function MapCanvas({
     });
 
     map.on("mousemove", (event: MapMouseEvent) => {
-      if (!map.getLayer(FLEET_SPRITES_LAYER_ID)) return;
-      const hits = map.queryRenderedFeatures(event.point, {
-        layers: [FLEET_SPRITES_LAYER_ID],
-      });
-      map.getCanvas().style.cursor = hits.length > 0 ? "pointer" : "";
+      const interactiveLayers = [
+        FLEET_3D_LAYER_ID,
+        FLEET_SPRITES_LAYER_ID,
+        ...(latestRef.current.onMapClick ? [ENV_LANDMARKS_LAYER_ID] : []),
+      ].filter((id) => Boolean(map.getLayer(id)));
+      if (interactiveLayers.length === 0) {
+        map.getCanvas().style.cursor = latestRef.current.onMapClick ? "crosshair" : "";
+        return;
+      }
+      const hits = map.queryRenderedFeatures(event.point, { layers: interactiveLayers });
+      map.getCanvas().style.cursor =
+        hits.length > 0 ? "pointer" : latestRef.current.onMapClick ? "crosshair" : "";
     });
 
     const resizeObserver = new ResizeObserver(() => {
@@ -463,7 +489,7 @@ export default function MapCanvas({
     if (!map || !mapReady) return;
 
     const activeFocusTrip = visibleTrips[0];
-    const showRiderSelectionPins = !showAllTrips && mode === "rider" && riderStep !== "location";
+    const showRiderSelectionPins = !showAllTrips && mode === "rider";
 
     const pickupPin = activeFocusTrip
       ? activeFocusTrip.pickup.coords
@@ -589,6 +615,8 @@ export default function MapCanvas({
           is3d={map3dEnabled}
           bearing={bearing}
           perfTier={perfTier}
+          trafficEnabled={trafficEnabled}
+          onToggleTraffic={() => setTrafficEnabled(!trafficEnabled)}
           onToggle3d={handleToggle3d}
           onRecenter={handleRecenter}
           onResetNorth={handleResetNorth}

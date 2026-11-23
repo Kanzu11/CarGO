@@ -8,6 +8,7 @@ import { HydrationGate } from "@/components/system/HydrationGate";
 import { Icon } from "@/components/ui/Icon";
 import { LocaleToggle } from "@/components/ui/LocaleToggle";
 import { Select } from "@/components/ui/Select";
+import { Switch } from "@/components/ui/Switch";
 import { CITY_ORDER } from "@/lib/cities";
 import { getStrings, localizeCityName } from "@/lib/i18n";
 import { useFleetStore } from "@/store/useFleetStore";
@@ -21,6 +22,8 @@ export function OpsTopBar() {
   const cityId = useFleetStore((s) => s.cityId);
   const setCity = useFleetStore((s) => s.setCity);
   const locale = useFleetStore((s) => s.locale);
+  const trafficEnabled = useFleetStore((s) => s.trafficEnabled);
+  const setTrafficEnabled = useFleetStore((s) => s.setTrafficEnabled);
   const sidebarCollapsed = useFleetStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useFleetStore((s) => s.setSidebarCollapsed);
 
@@ -70,8 +73,18 @@ export function OpsTopBar() {
         </HydrationGate>
       </div>
 
-      {/* Right: LocaleToggle and Mobile App link */}
+      {/* Right: Simulate Traffic switch, LocaleToggle, and Mobile App link */}
       <div className="flex shrink-0 items-center gap-2">
+        <HydrationGate fallback={null}>
+          <Switch
+            size="sm"
+            tone="live"
+            checked={trafficEnabled}
+            onChange={setTrafficEnabled}
+            label={s.simulateTraffic}
+          />
+        </HydrationGate>
+
         <LocaleToggle />
 
         <Link

@@ -1,13 +1,11 @@
 "use client";
 
-import { MapPin, X } from "lucide-react";
 import { useMemo } from "react";
 import { DriverPanel } from "@/components/driver/DriverPanel";
 import { ClientMap } from "@/components/map/ClientMap";
 import { TopBar } from "@/components/mobile/TopBar";
 import { RiderSheet } from "@/components/rider/RiderSheet";
 import { HydrationGate } from "@/components/system/HydrationGate";
-import { Icon } from "@/components/ui/Icon";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { getStrings } from "@/lib/i18n";
@@ -31,7 +29,6 @@ export function MobileShell() {
   const pickup = useFleetStore((s) => s.pickup);
   const destination = useFleetStore((s) => s.destination);
   const pickingTarget = useFleetStore((s) => s.pickingTarget);
-  const setPickingTarget = useFleetStore((s) => s.setPickingTarget);
   const setPickupFromCoords = useFleetStore((s) => s.setPickupFromCoords);
   const setDestinationFromCoords = useFleetStore((s) => s.setDestinationFromCoords);
   const trips = useFleetStore((s) => s.trips);
@@ -58,11 +55,10 @@ export function MobileShell() {
     [vehicles],
   );
 
-  const showCrosshair =
-    mode === "rider" && riderStep === "location" && pickingTarget === "pickup";
-
-  const pickingDestinationOnMap =
-    mode === "rider" && riderStep === "location" && pickingTarget === "destination";
+  const handleMapLocationPick = useMemo(() => {
+    if (mode !== "rider" || riderStep !== "location") return undefined;
+    return pickingTarget === "pickup" ? setPickupFromCoords : setDestinationFromCoords;
+  }, [mode, riderStep, pickingTarget, setPickupFromCoords, setDestinationFromCoords]);
 
   const previewRoute = useMemo(() => {
     if (mode === "rider") {
@@ -129,37 +125,18 @@ export function MobileShell() {
     <main className="relative h-dvh w-full overflow-hidden bg-surface">
       <ClientMap
         variant="mobile"
-        showCrosshair={showCrosshair}
+        showCrosshair={false}
         showAllTrips={false}
         followVehicleId={followVehicleId}
         previewRoute={previewRoute}
         fitBoundsCoords={fitBoundsData.coords}
         fitBoundsKey={fitBoundsData.key}
         padding={mapPadding}
-        onCrosshairSettled={setPickupFromCoords}
-        onMapClick={pickingDestinationOnMap ? setDestinationFromCoords : undefined}
+        onMapClick={handleMapLocationPick}
         controlsClassName="top-16"
       />
 
       <TopBar />
-
-      {/* Tap-map-to-set-destination instruction pill */}
-      {pickingDestinationOnMap && (
-        <div className="pointer-events-none fixed inset-x-0 top-16 z-30 flex justify-center px-3 md:left-[424px]">
-          <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-brand bg-canvas px-3 py-1.5 text-[12px] font-medium text-ink">
-            <Icon icon={MapPin} size={14} className="text-live" />
-            <span>{s.tapMapBanner}</span>
-            <button
-              type="button"
-              onClick={() => setPickingTarget("pickup")}
-              aria-label={s.cancel}
-              className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded text-muted hover:bg-surface hover:text-ink"
-            >
-              <Icon icon={X} size={13} />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Thumb-friendly Bottom Sheet (mobile) / Bottom-Left Floating Panel (desktop) */}
       <section

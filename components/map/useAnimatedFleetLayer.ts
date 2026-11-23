@@ -2,8 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
-import { FLEET_POINTS_SOURCE_ID } from "@/components/map/mapLayers";
 import {
+  FLEET_3D_SOURCE_ID,
+  FLEET_POINTS_SOURCE_ID,
+} from "@/components/map/mapLayers";
+import {
+  buildFleet3dFeatureCollection,
   buildFleetPointFeatureCollection,
   type InterpolatedVehicle,
 } from "@/components/map/vehicleModels";
@@ -104,6 +108,11 @@ export function useAnimatedFleetLayer({
         const pointsSource = map.getSource(FLEET_POINTS_SOURCE_ID) as GeoJSONSource | undefined;
         if (pointsSource) {
           pointsSource.setData(buildFleetPointFeatureCollection(interpolated));
+        }
+
+        const fleet3dSource = map.getSource(FLEET_3D_SOURCE_ID) as GeoJSONSource | undefined;
+        if (fleet3dSource) {
+          fleet3dSource.setData(buildFleet3dFeatureCollection(interpolated));
         }
       }
 

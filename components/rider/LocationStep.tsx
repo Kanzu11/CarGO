@@ -35,6 +35,7 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
   const destination = useFleetStore((s) => s.destination);
   const pickingTarget = useFleetStore((s) => s.pickingTarget);
   const setPickingTarget = useFleetStore((s) => s.setPickingTarget);
+  const setPickup = useFleetStore((s) => s.setPickup);
   const setDestination = useFleetStore((s) => s.setDestination);
   const proceedToTierStep = useFleetStore((s) => s.proceedToTierStep);
 
@@ -58,8 +59,24 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
 
   return (
     <div className="space-y-3">
-      {/* Pickup block */}
-      <div className="rounded-lg border border-line bg-surface p-2.5">
+      {/* Pickup block (tap to move pickup pin on map or pick landmark) */}
+      <div
+        onClick={() => setPickingTarget("pickup")}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setPickingTarget("pickup");
+          }
+        }}
+        className={cn(
+          "cursor-pointer rounded-lg border p-2.5 transition-colors",
+          pickingTarget === "pickup"
+            ? "border-brand bg-surface"
+            : "border-line bg-canvas hover:bg-surface",
+        )}
+      >
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <span
@@ -73,6 +90,11 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
                 <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
                   {s.pickupLabel}
                 </p>
+                {pickingTarget === "pickup" && (
+                  <span className="rounded bg-brand px-1.5 py-px text-[10px] font-medium text-white">
+                    {s.tapMapShort}
+                  </span>
+                )}
                 {locationSource === "real" && userGeo && (
                   <span className="num rounded bg-live-soft px-1 py-px text-[10px] font-semibold text-live">
                     ±{userGeo.accuracyM}m
@@ -89,6 +111,7 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
           <div
             role="group"
             aria-label="Location source"
+            onClick={(e) => e.stopPropagation()}
             className="inline-flex h-7 shrink-0 items-center rounded-lg border border-line bg-canvas p-0.5"
           >
             <button
@@ -125,15 +148,31 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
         </div>
       </div>
 
-      {/* Destination block */}
+      {/* Destination block (tap to move destination pin on map or pick landmark) */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-line bg-canvas px-2.5 py-2">
+        <button
+          type="button"
+          onClick={() => setPickingTarget("destination")}
+          className={cn(
+            "flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors",
+            pickingTarget === "destination"
+              ? "border-live bg-live-soft/35"
+              : "border-line bg-canvas hover:bg-surface",
+          )}
+        >
           <div className="flex min-w-0 items-center gap-2">
             <span className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-live" />
             <div className="min-w-0">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-                {s.destinationLabel}
-              </p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                  {s.destinationLabel}
+                </p>
+                {pickingTarget === "destination" && (
+                  <span className="rounded bg-live px-1.5 py-px text-[10px] font-medium text-white">
+                    {s.tapMapShort}
+                  </span>
+                )}
+              </div>
               <p className="truncate text-[14px] font-semibold text-ink">
                 {destination ? localizePlaceName(destination, locale) : s.chooseLandmark}
               </p>
@@ -144,20 +183,19 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
               {routeSummary.distanceKm.toFixed(1)} km
             </span>
           )}
-        </div>
+        </button>
 
         <DestinationPresets
           cityId={cityId}
-          pickupId={pickup.id}
-          selectedId={destination?.id ?? null}
-          pickingOnMap={pickingTarget === "destination"}
+          selectedId={pickingTarget === "pickup" ? pickup.id : (destination?.id ?? null)}
+          excludedId={pickingTarget === "pickup" ? (destination?.id ?? null) : pickup.id}
           onSelect={(place) => {
-            setDestination(place);
-            setPickingTarget("pickup");
+            if (pickingTarget === "pickup") {
+              setPickup(place);
+            } else {
+              setDestination(place);
+            }
           }}
-          onTogglePickOnMap={() =>
-            setPickingTarget(pickingTarget === "destination" ? "pickup" : "destination")
-          }
         />
       </div>
 
