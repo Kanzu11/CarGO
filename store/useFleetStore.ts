@@ -48,6 +48,25 @@ function defaultDestinationForCity(cityId: CityId): Place {
   return CITIES[cityId].landmarks[1] ?? CITIES[cityId].landmarks[0]!;
 }
 
+function buildGpsPickupPlace(cityId: CityId, userGeo: UserGeoPosition): Place {
+  const activeCity = userGeo.isWithinCity ? userGeo.nearestCityId : cityId;
+  const nearest = findNearestPlace(activeCity, userGeo.coords);
+  const label = userGeo.isWithinCity
+    ? nearest.distanceMeters <= 120
+      ? `GPS • ${nearest.place.name}`
+      : `GPS • Near ${nearest.place.name} (${nearest.distanceMeters}m)`
+    : `GPS • ${userGeo.coords[1].toFixed(4)}, ${userGeo.coords[0].toFixed(4)}`;
+
+  return {
+    id: `gps-pickup-${userGeo.updatedAt}`,
+    name: label,
+    neighborhood: userGeo.isWithinCity ? nearest.place.neighborhood : "Live GPS",
+    tag: nearest.place.tag,
+    coords: userGeo.coords,
+    kind: "custom",
+  };
+}
+
 const INITIAL_KPIS: FleetKpis = {
   activeFleet: 20,
   totalFleet: 20,
@@ -104,7 +123,7 @@ export interface FleetStoreState {
   setMap3dEnabled: (enabled: boolean) => void;
   setLocationSource: (source: LocationSource) => void;
   setGeoStatus: (status: GeoPermissionState) => void;
-  applyRealLocation: (coords: LngLat, accuracyM: number, autoFocus?: boolean) => void;
+  applyRealLocation: (coords: LngLat, accuracyM: number, autoFocus?: boolean, forceActivate?: boolean) => void;
   setPickup: (place: Place) => void;
   setPickupFromCoords: (coords: LngLat) => void;
   setDestination: (place: Place | null) => void;
@@ -184,13 +203,18 @@ export const useFleetStore = create<FleetStoreState>()(
 
       setCity: (cityId) => {
         if (cityId === get().cityId) return;
-        const pickup = defaultPickupForCity(cityId);
         const destination = defaultDestinationForCity(cityId);
         const userGeo = get().userGeo;
         const nextSource: LocationSource =
-          userGeo?.isWithinCity && userGeo.nearestCityId === cityId
-            ? get().locationSource
+          get().locationSource === "real" &&
+          userGeo?.isWithinCity &&
+          userGeo.nearestCityId === cityId
+            ? "real"
             : "simulated";
+        const pickup =
+          nextSource === "real" && userGeo
+            ? buildGpsPickupPlace(cityId, userGeo)
+            : defaultPickupForCity(cityId);
         set({
           cityId,
           locationSource: nextSource,
@@ -228,8 +252,29 @@ export const useFleetStore = create<FleetStoreState>()(
       },
 
       setLocationSource: (source) => {
-        const { cityId, userGeo } = get();
+        const { cityId, locationSource: prevSource, userGeo } = get();
         if (source === "simulated") {
+          if (prevSource === "simulated") return;
+          if (userGeo?.isWithinCity && userGeo.nearestCityId === cityId) {
+            const nearest = findNearestPlace(cityId, userGeo.coords);
+            const label =
+              nearest.distanceMeters <= 120
+                ? nearest.place.name
+                : `Near ${nearest.place.name} (${nearest.distanceMeters}m)`;
+            set({
+              locationSource: "simulated",
+              pickup: {
+                id: `sim-pickup-${Date.now()}`,
+                name: label,
+                neighborhood: nearest.place.neighborhood,
+                tag: nearest.place.tag,
+                coords: userGeo.coords,
+                kind: "custom",
+              },
+              pickingTarget: "pickup",
+            });
+            return;
+          }
           set({
             locationSource: "simulated",
             pickup: defaultPickupForCity(cityId),
@@ -250,28 +295,15 @@ export const useFleetStore = create<FleetStoreState>()(
           });
         }
         const activeCity = userGeo.isWithinCity ? userGeo.nearestCityId : cityId;
-        const nearest = findNearestPlace(activeCity, userGeo.coords);
-        const label = userGeo.isWithinCity
-          ? nearest.distanceMeters <= 120
-            ? `GPS • ${nearest.place.name}`
-            : `GPS • Near ${nearest.place.name} (${nearest.distanceMeters}m)`
-          : `GPS • ${userGeo.coords[1].toFixed(4)}, ${userGeo.coords[0].toFixed(4)}`;
 
         set({
           locationSource: "real",
-          pickup: {
-            id: `gps-pickup-${Date.now()}`,
-            name: label,
-            neighborhood: userGeo.isWithinCity ? nearest.place.neighborhood : "Live GPS",
-            tag: nearest.place.tag,
-            coords: userGeo.coords,
-            kind: "custom",
-          },
+          pickup: buildGpsPickupPlace(activeCity, userGeo),
           pickingTarget: "pickup",
         });
       },
 
-      applyRealLocation: (coords, accuracyM, autoFocus = false) => {
+      applyRealLocation: (coords, accuracyM, autoFocus = false, forceActivate = false) => {
         const detected = detectNearestSupportedCity(coords);
         const userGeo: UserGeoPosition = {
           coords,
@@ -283,7 +315,7 @@ export const useFleetStore = create<FleetStoreState>()(
 
         const prevSource = get().locationSource;
         const shouldActivateReal =
-          autoFocus && (detected.isWithinCity || prevSource === "real");
+          Boolean(forceActivate) || (autoFocus && (detected.isWithinCity || prevSource === "real"));
 
         set({ userGeo, geoStatus: "granted" });
 
@@ -302,25 +334,11 @@ export const useFleetStore = create<FleetStoreState>()(
           });
         }
 
-        const nearest = findNearestPlace(targetCity, coords);
-        const label = detected.isWithinCity
-          ? nearest.distanceMeters <= 120
-            ? `GPS • ${nearest.place.name}`
-            : `GPS • Near ${nearest.place.name} (${nearest.distanceMeters}m)`
-          : `GPS • ${coords[1].toFixed(4)}, ${coords[0].toFixed(4)}`;
-
         // Only overwrite pickup if still choosing location
         if (get().riderStep === "location") {
           set({
             locationSource: "real",
-            pickup: {
-              id: `gps-pickup-${Date.now()}`,
-              name: label,
-              neighborhood: detected.isWithinCity ? nearest.place.neighborhood : "Live GPS",
-              tag: nearest.place.tag,
-              coords,
-              kind: "custom",
-            },
+            pickup: buildGpsPickupPlace(targetCity, userGeo),
           });
         } else {
           set({ locationSource: "real" });

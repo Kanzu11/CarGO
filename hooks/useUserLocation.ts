@@ -30,7 +30,7 @@ export function useUserLocation(): { requestLocation: (manual?: boolean) => void
       (pos) => {
         const coords: [number, number] = [pos.coords.longitude, pos.coords.latitude];
         const state = useFleetStore.getState();
-        state.applyRealLocation(coords, pos.coords.accuracy, true);
+        state.applyRealLocation(coords, pos.coords.accuracy, true, manual);
         const updated = useFleetStore.getState().userGeo;
         if (updated) {
           const cityName = localizeCityName(updated.nearestCityId, state.locale);

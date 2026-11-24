@@ -34,6 +34,7 @@ import {
   ENV_LANDMARKS_LAYER_ID,
   FLEET_3D_LAYER_ID,
   FLEET_SPRITES_LAYER_ID,
+  resolvePersonPinState,
   syncFleetLayerMode,
   updateCityEnvironmentLayers,
   updateRoutesAndPins,
@@ -44,6 +45,7 @@ import { useFollowCamera } from "@/components/map/useFollowCamera";
 import { usePerfTier } from "@/components/map/usePerfTier";
 import { cn } from "@/lib/cn";
 import { CITIES } from "@/lib/cities";
+import { haversineMeters } from "@/lib/geo";
 import { getStrings, localizeCityName } from "@/lib/i18n";
 import { isActiveTripPhase } from "@/lib/tripMachine";
 import { useFleetStore } from "@/store/useFleetStore";
@@ -201,7 +203,7 @@ export default function MapCanvas({
       ensureCargoLayers(map, is3d);
       applyMapLanguage(map, currentLocale);
       updateCityEnvironmentLayers(map, useFleetStore.getState().cityId, currentLocale);
-      updateUserLocationLayer(map, useFleetStore.getState().userGeo);
+      updateUserLocationLayer(map, null);
       setMapInstance(map);
       setMapReady(true);
     };
@@ -370,17 +372,18 @@ export default function MapCanvas({
     updateCityEnvironmentLayers(map, cityId, locale);
   }, [mapReady, cityId, locale]);
 
-  // Sync live user GPS accuracy ring & dot + fly to exact GPS when switching into Real GPS mode
+  // Fly smoothly between Real GPS and Simulated pickup when toggling location source
   const lastGpsCenteredSourceRef = useRef(locationSource);
   const centeredFirstGpsRef = useRef(false);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
-    updateUserLocationLayer(map, userGeo);
 
     const switchedToReal =
       locationSource === "real" && lastGpsCenteredSourceRef.current !== "real";
+    const switchedToSim =
+      locationSource === "simulated" && lastGpsCenteredSourceRef.current === "real";
     lastGpsCenteredSourceRef.current = locationSource;
 
     if (variant === "mobile" && locationSource === "real" && userGeo) {
@@ -395,8 +398,23 @@ export default function MapCanvas({
           essential: true,
         });
       }
+      return;
     }
-  }, [mapReady, userGeo, locationSource, variant, map3dEnabled, cityId]);
+
+    if (variant === "mobile" && switchedToSim) {
+      const c = map.getCenter();
+      if (haversineMeters([c.lng, c.lat], pickup.coords) > 600) {
+        map.flyTo({
+          center: pickup.coords,
+          zoom: cityTargetZoom(CITIES[cityId].zoom, variant),
+          pitch: map3dEnabled ? CITIES[cityId].pitch : 0,
+          bearing: map3dEnabled ? CITIES[cityId].bearing : 0,
+          duration: 750,
+          essential: true,
+        });
+      }
+    }
+  }, [mapReady, userGeo, locationSource, variant, map3dEnabled, cityId, pickup.coords]);
 
   // Sync city switches cleanly via instant cross-city jump
   useEffect(() => {
@@ -510,11 +528,24 @@ export default function MapCanvas({
         ? destination.coords
         : null;
 
+    const personPin = resolvePersonPinState({
+      locationSource,
+      userGeo,
+      pickupPin,
+      activeTripPhase: activeFocusTrip?.phase ?? null,
+    });
+
     updateRoutesAndPins(map, {
       trips: visibleTrips,
       previewRoute: visibleTrips.length === 0 ? previewRoute : undefined,
       pickupPin,
       dropoffPin,
+      pickupIsLiveGps: personPin.pickupIsLiveGps,
+    });
+
+    updateUserLocationLayer(map, userGeo, {
+      showAccuracyRing: personPin.showAccuracyRing,
+      showStandalonePin: personPin.showStandaloneUserPin,
     });
   }, [
     mapReady,
@@ -525,6 +556,8 @@ export default function MapCanvas({
     riderStep,
     pickup.coords,
     destination,
+    locationSource,
+    userGeo,
   ]);
 
   const handleToggle3d = useCallback(() => {
@@ -572,6 +605,17 @@ export default function MapCanvas({
       return;
     }
 
+    if (variant === "mobile" && mode === "rider") {
+      map.flyTo({
+        center: pickup.coords,
+        zoom: Math.max(15.6, cityTargetZoom(city.zoom, variant)),
+        pitch: map3dEnabled ? preset.pitch : 0,
+        bearing: map3dEnabled ? city.bearing : 0,
+        duration: 750,
+      });
+      return;
+    }
+
     map.flyTo({
       center: city.center,
       zoom: cityTargetZoom(city.zoom, variant),
@@ -579,7 +623,17 @@ export default function MapCanvas({
       bearing: map3dEnabled ? city.bearing : 0,
       duration: 750,
     });
-  }, [cityId, followVehicleId, locationSource, map3dEnabled, resetManualOverride, userGeo, variant]);
+  }, [
+    cityId,
+    followVehicleId,
+    locationSource,
+    map3dEnabled,
+    mode,
+    pickup.coords,
+    resetManualOverride,
+    userGeo,
+    variant,
+  ]);
 
   const handleZoomIn = useCallback(() => {
     mapRef.current?.zoomIn({ duration: 220 });

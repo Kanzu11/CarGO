@@ -12,8 +12,9 @@ import {
   buildPin3dPolygon,
   localMetersToLngLat,
 } from "@/components/map/vehicleModels";
+import { haversineMeters } from "@/lib/geo";
 import { registerVehicleSprites } from "@/components/map/vehicleSprites";
-import type { CityId, LngLat, Locale, Trip, UserGeoPosition } from "@/types/fleet";
+import type { CityId, LngLat, Locale, LocationSource, Trip, TripPhase, UserGeoPosition } from "@/types/fleet";
 
 export const ENV_LANDMARKS_SOURCE_ID = "cargo-env-landmarks";
 export const ROUTES_SOURCE_ID = "cargo-routes";
@@ -367,11 +368,51 @@ export function updateCityEnvironmentLayers(
   landmarksSource.setData(buildCityLandmarksGeoJson(cityId, locale));
 }
 
+export interface PersonPinVisualState {
+  pickupIsLiveGps: boolean;
+  showAccuracyRing: boolean;
+  showStandaloneUserPin: boolean;
+}
+
+/**
+ * Resolves how the single Rider Person Pin and GPS accuracy ring should render
+ * across `real` GPS and `simulated` modes so pins never duplicate or leave ghosts.
+ */
+export function resolvePersonPinState(params: {
+  locationSource: LocationSource;
+  userGeo: UserGeoPosition | null;
+  pickupPin: LngLat | null;
+  activeTripPhase?: TripPhase | null;
+}): PersonPinVisualState {
+  const { locationSource, userGeo, pickupPin } = params;
+  if (locationSource !== "real" || !userGeo) {
+    return {
+      pickupIsLiveGps: false,
+      showAccuracyRing: false,
+      showStandaloneUserPin: false,
+    };
+  }
+  if (!pickupPin) {
+    return {
+      pickupIsLiveGps: false,
+      showAccuracyRing: true,
+      showStandaloneUserPin: true,
+    };
+  }
+  const syncedWithPickup = haversineMeters(pickupPin, userGeo.coords) <= 25;
+  return {
+    pickupIsLiveGps: syncedWithPickup,
+    showAccuracyRing: true,
+    showStandaloneUserPin: !syncedWithPickup,
+  };
+}
+
 export interface RouteAndPinUpdate {
   trips: ReadonlyArray<Trip>;
   previewRoute?: ReadonlyArray<LngLat>;
   pickupPin?: LngLat | null;
   dropoffPin?: LngLat | null;
+  pickupIsLiveGps?: boolean;
 }
 
 export function updateRoutesAndPins(map: MapLibreMap, data: RouteAndPinUpdate): void {
@@ -422,13 +463,16 @@ export function updateRoutesAndPins(map: MapLibreMap, data: RouteAndPinUpdate): 
     const pointFeatures: Feature<Point>[] = [];
 
     if (data.pickupPin) {
-      stemFeatures.push(buildPin3dPolygon(data.pickupPin, 3.6, 2.2, "#09090B", "pickup"));
+      const isLiveGps = Boolean(data.pickupIsLiveGps);
+      stemFeatures.push(
+        buildPin3dPolygon(data.pickupPin, 3.6, 2.2, isLiveGps ? "#0284C7" : "#09090B", "pickup"),
+      );
       pointFeatures.push({
         type: "Feature",
         properties: {
           kind: "pickup",
-          color: "#10B981",
-          spriteId: PIN_PICKUP_SPRITE_ID,
+          color: isLiveGps ? "#0284C7" : "#10B981",
+          spriteId: isLiveGps ? PIN_PERSON_SPRITE_ID : PIN_PICKUP_SPRITE_ID,
         },
         geometry: { type: "Point", coordinates: data.pickupPin },
       });
@@ -452,48 +496,59 @@ export function updateRoutesAndPins(map: MapLibreMap, data: RouteAndPinUpdate): 
   }
 }
 
-/** Updates the live user GPS dot & accuracy ring polygon on the map. */
+export interface UserLocationLayerOptions {
+  showAccuracyRing?: boolean;
+  showStandalonePin?: boolean;
+}
+
+/** Updates the live user GPS pin & accuracy ring polygon on the map. */
 export function updateUserLocationLayer(
   map: MapLibreMap,
   userGeo: UserGeoPosition | null,
+  options?: UserLocationLayerOptions,
 ): void {
   const accuracySource = map.getSource(USER_ACCURACY_SOURCE_ID) as GeoJSONSource | undefined;
   const dotSource = map.getSource(USER_DOT_SOURCE_ID) as GeoJSONSource | undefined;
   if (!accuracySource || !dotSource) return;
 
-  if (!userGeo) {
+  const showAccuracy = Boolean(userGeo) && (options?.showAccuracyRing ?? true);
+  const showDot = Boolean(userGeo) && (options?.showStandalonePin ?? true);
+
+  if (!showAccuracy || !userGeo) {
     accuracySource.setData(EMPTY_FC);
+  } else {
+    const radiusM = Math.max(12, Math.min(220, userGeo.accuracyM));
+    const ring: LngLat[] = [];
+    const sides = 24;
+    for (let i = 0; i < sides; i++) {
+      ring.push(localMetersToLngLat(userGeo.coords, radiusM, 0, (i / sides) * 360));
+    }
+    ring.push(ring[0]!);
+
+    accuracySource.setData({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {},
+          geometry: { type: "Polygon", coordinates: [ring] },
+        },
+      ],
+    });
+  }
+
+  if (!showDot || !userGeo) {
     dotSource.setData(EMPTY_FC);
-    return;
+  } else {
+    dotSource.setData({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {},
+          geometry: { type: "Point", coordinates: userGeo.coords },
+        },
+      ],
+    });
   }
-
-  const radiusM = Math.max(12, Math.min(220, userGeo.accuracyM));
-  const ring: LngLat[] = [];
-  const sides = 24;
-  for (let i = 0; i < sides; i++) {
-    ring.push(localMetersToLngLat(userGeo.coords, radiusM, 0, (i / sides) * 360));
-  }
-  ring.push(ring[0]!);
-
-  accuracySource.setData({
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        properties: {},
-        geometry: { type: "Polygon", coordinates: [ring] },
-      },
-    ],
-  });
-
-  dotSource.setData({
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        properties: {},
-        geometry: { type: "Point", coordinates: userGeo.coords },
-      },
-    ],
-  });
 }
