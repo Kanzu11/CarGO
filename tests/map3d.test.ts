@@ -3,6 +3,7 @@ import {
   CAMERA_PRESETS,
   ESRI_WORLD_IMAGERY_TILES,
   MAP_MAX_ZOOM,
+  OVERTURE_BUILDINGS_PMTILES,
   SATELLITE_MAX_ZOOM,
 } from "@/components/map/map3d";
 import { buildCity3dSceneGeoJson } from "@/components/map/mapTrees";
@@ -96,15 +97,11 @@ describe("3D map vehicle sprites, pins & geometry", () => {
     expect(pinParts[2]?.properties?.height).toBe(25);
   });
 
-  it("clamps satellite zoom cleanly and builds 3D Addis Ababa buildings, park trees & landmarks", () => {
+  it("mounts real Overture 3D buildings, clamps satellite zoom, and emits zero fake statues", () => {
     expect(ESRI_WORLD_IMAGERY_TILES).toContain("World_Imagery/MapServer/tile/{z}/{y}/{x}");
+    expect(OVERTURE_BUILDINGS_PMTILES).toContain("2026-11-18.0/buildings.pmtiles");
     expect(SATELLITE_MAX_ZOOM).toBe(17);
     expect(MAP_MAX_ZOOM).toBeLessThanOrEqual(17.5);
-
-    const addisScene = buildCity3dSceneGeoJson("addis", "en");
-    expect(addisScene.buildings.features.length).toBeGreaterThan(30);
-    expect(addisScene.trees.features.length).toBeGreaterThan(80);
-    expect(addisScene.landmarks.features).toHaveLength(CITIES.addis.landmarks.length);
 
     // Worabe centers cleanly onto the real town highway spine & K'ali K'esa Bota corridor
     const [wLng, wLat] = CITIES.worabe.center;
@@ -113,17 +110,10 @@ describe("3D map vehicle sprites, pins & geometry", () => {
     expect(wLat).toBeGreaterThanOrEqual(7.84);
     expect(wLat).toBeLessThanOrEqual(7.854);
 
-    const worabeScene = buildCity3dSceneGeoJson("worabe", "en");
-    expect(worabeScene.buildings.features.length).toBeGreaterThan(50);
-
-    expect(PIN_PERSON_SPRITE_ID).toBe("cargo-pin-person");
-    expect(PIN_PICKUP_SPRITE_ID).toBe("cargo-pin-pickup");
-    expect(PIN_DROPOFF_SPRITE_ID).toBe("cargo-pin-dropoff");
-
     for (const cityId of CITY_ORDER) {
       const scene = buildCity3dSceneGeoJson(cityId, "en");
-      expect(scene.buildings.features.length).toBeGreaterThan(10);
-      expect(scene.trees.features.length).toBeGreaterThan(20);
+      expect(scene.buildings.features).toHaveLength(0);
+      expect(scene.trees.features).toHaveLength(0);
       expect(scene.landmarks.features).toHaveLength(CITIES[cityId].landmarks.length);
       for (const feat of scene.landmarks.features) {
         expect(feat.geometry.type).toBe("Point");
@@ -134,5 +124,9 @@ describe("3D map vehicle sprites, pins & geometry", () => {
     const amharicScene = buildCity3dSceneGeoJson("addis", "am");
     const firstLabel = String(amharicScene.landmarks.features[0]?.properties?.label ?? "");
     expect(firstLabel).toMatch(/[\u1200-\u137F]/);
+
+    expect(PIN_PERSON_SPRITE_ID).toBe("cargo-pin-person");
+    expect(PIN_PICKUP_SPRITE_ID).toBe("cargo-pin-pickup");
+    expect(PIN_DROPOFF_SPRITE_ID).toBe("cargo-pin-dropoff");
   });
 });

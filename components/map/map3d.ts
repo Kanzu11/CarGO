@@ -1,4 +1,5 @@
-import type { LayerSpecification, Map as MapLibreMap } from "maplibre-gl";
+import { addProtocol, type Map as MapLibreMap } from "maplibre-gl";
+import { Protocol } from "pmtiles";
 import type { Locale } from "@/types/fleet";
 
 export const OPENFREEMAP_POSITRON_STYLE = "https://tiles.openfreemap.org/styles/positron";
@@ -6,6 +7,8 @@ export const CARTO_POSITRON_STYLE =
   "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 export const ESRI_WORLD_IMAGERY_TILES =
   "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+export const OVERTURE_BUILDINGS_PMTILES =
+  "https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/2026-11-18.0/buildings.pmtiles";
 export const AWS_TERRARIUM_TILES =
   "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
 
@@ -15,9 +18,21 @@ export const MAP_MAX_ZOOM = 17.2;
 
 export const SATELLITE_SOURCE_ID = "cargo-satellite-imagery";
 export const SATELLITE_LAYER_ID = "cargo-satellite-layer";
+export const OVERTURE_BUILDINGS_SOURCE_ID = "cargo-overture-buildings";
 export const TERRAIN_SOURCE_ID = "cargo-terrain-dem";
 export const HILLSHADE_LAYER_ID = "cargo-hillshade";
 export const BUILDINGS_3D_LAYER_ID = "cargo-buildings-3d";
+export const OVERTURE_BUILDINGS_PARTS_LAYER_ID = "cargo-overture-building-parts-3d";
+
+let pmtilesRegistered = false;
+
+/** Registers MapLibre's global `pmtiles://` protocol handler once per client runtime. */
+export function ensurePmtilesProtocol(): void {
+  if (pmtilesRegistered) return;
+  pmtilesRegistered = true;
+  const protocol = new Protocol();
+  addProtocol("pmtiles", (params, abortController) => protocol.tile(params, abortController));
+}
 
 export type CameraPreset =
   | "rider-pickup"
@@ -60,96 +75,119 @@ export function findFirstSymbolLayerId(map: MapLibreMap): string | undefined {
   return layers.find((layer) => layer.type === "symbol")?.id;
 }
 
-interface BuildingSourceRef {
-  source: string;
-  sourceLayer: string;
-}
-
-function detectBuildingSource(layers: ReadonlyArray<LayerSpecification>): BuildingSourceRef | null {
-  for (const layer of layers) {
-    if (layer.type !== "fill") continue;
-    const candidate = layer as LayerSpecification & {
-      source?: string;
-      "source-layer"?: string;
-    };
-    const sourceLayer = candidate["source-layer"];
-    if (candidate.source && (sourceLayer === "building" || sourceLayer === "buildings")) {
-      return { source: candidate.source, sourceLayer };
-    }
-  }
-  return null;
-}
-
 /**
- * Adds shaded OSM 3D building extrusions on top of the Hybrid Satellite View
- * (works on both OpenFreeMap `building` and Carto `buildings` vector sources).
+ * Mounts real Overture Maps 3D building & building_part footprints (Google Open
+ * Buildings + Microsoft ML + OSM) via PMTiles so every city—including Worabe—
+ * renders real 3D building extrusions matched to actual satellite rooftops.
  */
 export function apply3dBuildingsLayer(map: MapLibreMap, visible = true): void {
-  const style = map.getStyle();
-  if (!style?.layers) return;
+  try {
+    ensurePmtilesProtocol();
 
-  if (map.getLayer(BUILDINGS_3D_LAYER_ID)) {
+    if (!map.getSource(OVERTURE_BUILDINGS_SOURCE_ID)) {
+      map.addSource(OVERTURE_BUILDINGS_SOURCE_ID, {
+        type: "vector",
+        url: `pmtiles://${OVERTURE_BUILDINGS_PMTILES}`,
+        maxzoom: 14,
+        attribution: "Overture Maps Foundation",
+      });
+    }
+
+    const beforeId = findFirstSymbolLayerId(map);
+
+    const buildingColorExpr = [
+      "coalesce",
+      ["get", "facade_color"],
+      [
+        "interpolate",
+        ["linear"],
+        ["coalesce", ["get", "height"], ["*", ["coalesce", ["get", "num_floors"], 2], 3.5], 7.5],
+        0,
+        "#EAE4DC",
+        9,
+        "#DFD8CE",
+        18,
+        "#CBD5E1",
+        36,
+        "#94A3B8",
+        65,
+        "#64748B",
+      ],
+    ] as unknown as string;
+
+    const buildingHeightExpr = [
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      12.5,
+      0,
+      13.6,
+      ["coalesce", ["get", "height"], ["*", ["coalesce", ["get", "num_floors"], 2], 3.5], 7.5],
+    ] as unknown as number;
+
+    const buildingBaseExpr = ["coalesce", ["get", "min_height"], 0] as unknown as number;
+
+    if (!map.getLayer(BUILDINGS_3D_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: BUILDINGS_3D_LAYER_ID,
+          type: "fill-extrusion",
+          source: OVERTURE_BUILDINGS_SOURCE_ID,
+          "source-layer": "building",
+          minzoom: 12.5,
+          filter: ["!=", ["get", "has_parts"], true],
+          layout: {
+            visibility: visible ? "visible" : "none",
+          },
+          paint: {
+            "fill-extrusion-color": buildingColorExpr,
+            "fill-extrusion-height": buildingHeightExpr,
+            "fill-extrusion-base": buildingBaseExpr,
+            "fill-extrusion-opacity": 0.9,
+            "fill-extrusion-vertical-gradient": true,
+          },
+        },
+        beforeId,
+      );
+    }
+
+    if (!map.getLayer(OVERTURE_BUILDINGS_PARTS_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: OVERTURE_BUILDINGS_PARTS_LAYER_ID,
+          type: "fill-extrusion",
+          source: OVERTURE_BUILDINGS_SOURCE_ID,
+          "source-layer": "building_part",
+          minzoom: 13,
+          layout: {
+            visibility: visible ? "visible" : "none",
+          },
+          paint: {
+            "fill-extrusion-color": buildingColorExpr,
+            "fill-extrusion-height": buildingHeightExpr,
+            "fill-extrusion-base": buildingBaseExpr,
+            "fill-extrusion-opacity": 0.92,
+            "fill-extrusion-vertical-gradient": true,
+          },
+        },
+        beforeId,
+      );
+    }
+
     setBuildingsVisibility(map, visible);
-    return;
+  } catch {
+    // Graceful fallback if style/PMTiles source rejects initialization
   }
-
-  const buildingRef = detectBuildingSource(style.layers);
-  if (!buildingRef) return;
-
-  const beforeId = findFirstSymbolLayerId(map);
-
-  map.addLayer(
-    {
-      id: BUILDINGS_3D_LAYER_ID,
-      type: "fill-extrusion",
-      source: buildingRef.source,
-      "source-layer": buildingRef.sourceLayer,
-      minzoom: 12,
-      layout: {
-        visibility: visible ? "visible" : "none",
-      },
-      paint: {
-        "fill-extrusion-color": [
-          "interpolate",
-          ["linear"],
-          ["coalesce", ["get", "render_height"], ["get", "height"], 11],
-          0,
-          "#E7E2DA",
-          10,
-          "#DDD6CC",
-          22,
-          "#CBD5E1",
-          42,
-          "#94A3B8",
-          70,
-          "#64748B",
-        ],
-        "fill-extrusion-height": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          12,
-          0,
-          13.2,
-          ["coalesce", ["get", "render_height"], ["get", "height"], 11],
-        ],
-        "fill-extrusion-base": [
-          "coalesce",
-          ["get", "render_min_height"],
-          ["get", "min_height"],
-          0,
-        ],
-        "fill-extrusion-opacity": 0.94,
-        "fill-extrusion-vertical-gradient": true,
-      },
-    },
-    beforeId,
-  );
 }
 
 export function setBuildingsVisibility(map: MapLibreMap, visible: boolean): void {
-  if (!map.getLayer(BUILDINGS_3D_LAYER_ID)) return;
-  map.setLayoutProperty(BUILDINGS_3D_LAYER_ID, "visibility", visible ? "visible" : "none");
+  const vis = visible ? "visible" : "none";
+  if (map.getLayer(BUILDINGS_3D_LAYER_ID)) {
+    map.setLayoutProperty(BUILDINGS_3D_LAYER_ID, "visibility", vis);
+  }
+  if (map.getLayer(OVERTURE_BUILDINGS_PARTS_LAYER_ID)) {
+    map.setLayoutProperty(OVERTURE_BUILDINGS_PARTS_LAYER_ID, "visibility", vis);
+  }
 }
 
 /**

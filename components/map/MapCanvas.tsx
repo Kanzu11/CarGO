@@ -24,6 +24,7 @@ import {
   MAP_MAX_ZOOM,
   MAP_MIN_ZOOM,
   OPENFREEMAP_POSITRON_STYLE,
+  OVERTURE_BUILDINGS_SOURCE_ID,
   rewriteCartoGlyphUrl,
   setBuildingsVisibility,
   TERRAIN_SOURCE_ID,
@@ -220,10 +221,14 @@ export default function MapCanvas({
         setTerrainBlocked(true);
         return;
       }
+      if (errSource === OVERTURE_BUILDINGS_SOURCE_ID || msg.includes("overturemaps")) {
+        return;
+      }
       if (
         !loadedOnce &&
         !fallbackUsed &&
         !msg.includes("elevation-tiles-prod") &&
+        !msg.includes("overturemaps") &&
         !msg.includes("Worker")
       ) {
         fallbackUsed = true;
