@@ -224,6 +224,25 @@ export function buildFleet3dFeatureCollection(
   for (const v of vehicles) {
     const statusAccent = vehicleStatusColor(v.status, v.isPlayerDriver);
     const palette = tierBodyColor(v.tier, v.status, v.isPlayerDriver);
+    const shadowOrigin = localMetersToLngLat(v.position, 0.55, 0.75, v.bearing);
+
+    // Subtle ground cast shadow under each 3D vehicle
+    features.push(
+      buildSculptedHull3dPolygon(
+        shadowOrigin,
+        0,
+        0,
+        v.tier === "cargo" ? 6.8 : v.tier === "minivan" ? 5.8 : v.tier === "economy" ? 5.1 : 3.5,
+        v.tier === "cargo" ? 2.8 : 2.35,
+        v.bearing,
+        0,
+        0.08,
+        "#09090B",
+        v.id,
+        0.76,
+        0.84,
+      ),
+    );
 
     if (v.selected) {
       features.push(

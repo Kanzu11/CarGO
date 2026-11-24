@@ -1,7 +1,7 @@
 import type { Feature, FeatureCollection, LineString, Point, Polygon } from "geojson";
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { findFirstSymbolLayerId } from "@/components/map/map3d";
-import { buildCity3dSceneGeoJson } from "@/components/map/mapTrees";
+import { buildCityLandmarksGeoJson } from "@/components/map/mapTrees";
 import {
   PIN_DROPOFF_SPRITE_ID,
   PIN_PERSON_SPRITE_ID,
@@ -25,8 +25,6 @@ import type {
   UserGeoPosition,
 } from "@/types/fleet";
 
-export const ENV_BUILDINGS_SOURCE_ID = "cargo-env-buildings";
-export const ENV_TREES_SOURCE_ID = "cargo-env-trees";
 export const ENV_LANDMARKS_SOURCE_ID = "cargo-env-landmarks";
 export const ROUTES_SOURCE_ID = "cargo-routes";
 export const PINS_3D_SOURCE_ID = "cargo-pins-3d";
@@ -38,8 +36,6 @@ export const USER_DOT_SOURCE_ID = "cargo-user-dot";
 
 export const ROUTE_ARROW_SPRITE_ID = "cargo-route-arrow";
 
-export const ENV_BUILDINGS_3D_LAYER_ID = "cargo-env-buildings-3d";
-export const ENV_TREES_3D_LAYER_ID = "cargo-env-trees-3d";
 export const ENV_LANDMARKS_LAYER_ID = "cargo-env-landmarks-dots";
 export const ENV_LANDMARKS_LABEL_LAYER_ID = "cargo-env-landmarks-labels";
 export const ROUTE_APPROACH_LAYER_ID = "cargo-route-approach";
@@ -116,8 +112,6 @@ export function ensureCargoLayers(
   registerPinSprites(map);
   registerRouteArrowSprite(map);
 
-  ensureGeoJsonSource(map, ENV_BUILDINGS_SOURCE_ID);
-  ensureGeoJsonSource(map, ENV_TREES_SOURCE_ID);
   ensureGeoJsonSource(map, ENV_LANDMARKS_SOURCE_ID);
   ensureGeoJsonSource(map, ROUTES_SOURCE_ID);
   ensureGeoJsonSource(map, PINS_3D_SOURCE_ID);
@@ -128,66 +122,6 @@ export function ensureCargoLayers(
   ensureGeoJsonSource(map, USER_DOT_SOURCE_ID);
 
   const beforeSymbol = findFirstSymbolLayerId(map);
-
-  if (!map.getLayer(ENV_BUILDINGS_3D_LAYER_ID)) {
-    map.addLayer(
-      {
-        id: ENV_BUILDINGS_3D_LAYER_ID,
-        type: "fill-extrusion",
-        source: ENV_BUILDINGS_SOURCE_ID,
-        minzoom: 12,
-        layout: {
-          visibility: is3d ? "visible" : "none",
-        },
-        paint: {
-          "fill-extrusion-color": ["get", "color"],
-          "fill-extrusion-height": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            12,
-            0,
-            12.8,
-            ["get", "height"],
-          ],
-          "fill-extrusion-base": ["coalesce", ["get", "base"], 0],
-          "fill-extrusion-vertical-gradient": true,
-          "fill-extrusion-opacity": 0.97,
-        },
-      },
-      beforeSymbol,
-    );
-  }
-
-  if (!map.getLayer(ENV_TREES_3D_LAYER_ID)) {
-    map.addLayer(
-      {
-        id: ENV_TREES_3D_LAYER_ID,
-        type: "fill-extrusion",
-        source: ENV_TREES_SOURCE_ID,
-        minzoom: 13,
-        layout: {
-          visibility: is3d ? "visible" : "none",
-        },
-        paint: {
-          "fill-extrusion-color": ["get", "color"],
-          "fill-extrusion-height": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            13,
-            0,
-            13.6,
-            ["get", "height"],
-          ],
-          "fill-extrusion-base": ["coalesce", ["get", "base"], 0],
-          "fill-extrusion-vertical-gradient": true,
-          "fill-extrusion-opacity": 0.96,
-        },
-      },
-      beforeSymbol,
-    );
-  }
 
   if (!map.getLayer(ENV_LANDMARKS_LAYER_ID)) {
     map.addLayer(
@@ -516,12 +450,6 @@ export function syncLandmarkLabelTheme(map: MapLibreMap, styleMode: MapStyleMode
 
 export function syncFleetLayerMode(map: MapLibreMap, is3d: boolean): void {
   const vis3d = is3d ? "visible" : "none";
-  if (map.getLayer(ENV_BUILDINGS_3D_LAYER_ID)) {
-    map.setLayoutProperty(ENV_BUILDINGS_3D_LAYER_ID, "visibility", vis3d);
-  }
-  if (map.getLayer(ENV_TREES_3D_LAYER_ID)) {
-    map.setLayoutProperty(ENV_TREES_3D_LAYER_ID, "visibility", vis3d);
-  }
   if (map.getLayer(PINS_3D_STEM_LAYER_ID)) {
     map.setLayoutProperty(PINS_3D_STEM_LAYER_ID, "visibility", vis3d);
   }
@@ -533,20 +461,15 @@ export function syncFleetLayerMode(map: MapLibreMap, is3d: boolean): void {
   }
 }
 
-/** Populates designed 3D city architecture, avenue trees & localized landmark labels. */
+/** Populates localized city landmark anchor dots & labels on the map. */
 export function updateCityEnvironmentLayers(
   map: MapLibreMap,
   cityId: CityId,
   locale: Locale,
 ): void {
-  const scene = buildCity3dSceneGeoJson(cityId, locale);
-  const buildingsSource = map.getSource(ENV_BUILDINGS_SOURCE_ID) as GeoJSONSource | undefined;
-  const treesSource = map.getSource(ENV_TREES_SOURCE_ID) as GeoJSONSource | undefined;
   const landmarksSource = map.getSource(ENV_LANDMARKS_SOURCE_ID) as GeoJSONSource | undefined;
-
-  buildingsSource?.setData(scene.buildings);
-  treesSource?.setData(scene.trees);
-  landmarksSource?.setData(scene.landmarks);
+  if (!landmarksSource) return;
+  landmarksSource.setData(buildCityLandmarksGeoJson(cityId, locale));
 }
 
 export interface PersonPinVisualState {

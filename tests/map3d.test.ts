@@ -8,6 +8,7 @@ import {
   MAP_MAX_ZOOM,
   OSM_BUILDINGS_3D_LAYER_ID,
   OVERTURE_BUILDINGS_PMTILES,
+  OVERTURE_BUILDINGS_SHADOW_LAYER_ID,
   SATELLITE_MAX_ZOOM,
 } from "@/components/map/map3d";
 import { ENV_LANDMARKS_LABEL_LAYER_ID, ROUTE_ARROWS_LAYER_ID } from "@/components/map/mapLayers";
@@ -110,6 +111,7 @@ describe("3D map vehicle sprites, pins & geometry", () => {
     expect(OVERTURE_BUILDINGS_PMTILES).toContain("2026-11-18.0/buildings.pmtiles");
     expect(OSM_BUILDINGS_3D_LAYER_ID).toBe("cargo-osm-buildings-3d");
     expect(BUILDINGS_AO_LAYER_ID).toBe("cargo-buildings-ao");
+    expect(OVERTURE_BUILDINGS_SHADOW_LAYER_ID).toBe("cargo-overture-buildings-shadow");
     expect(BUILDINGS_PLINTH_LAYER_ID).toBe("cargo-buildings-plinth");
     expect(BUILDINGS_ROOF_CAP_LAYER_ID).toBe("cargo-buildings-roof-cap");
     expect(ENV_LANDMARKS_LABEL_LAYER_ID).toBe("cargo-env-landmarks-labels");
@@ -136,8 +138,8 @@ describe("3D map vehicle sprites, pins & geometry", () => {
 
     for (const cityId of CITY_ORDER) {
       const scene = buildCity3dSceneGeoJson(cityId, "en");
-      expect(scene.buildings.features.length).toBeGreaterThanOrEqual(80);
-      expect(scene.trees.features.length).toBeGreaterThanOrEqual(40);
+      expect(scene.buildings.features).toHaveLength(0);
+      expect(scene.trees.features).toHaveLength(0);
       expect(scene.landmarks.features).toHaveLength(CITIES[cityId].landmarks.length);
       for (const feat of scene.landmarks.features) {
         expect(feat.geometry.type).toBe("Point");

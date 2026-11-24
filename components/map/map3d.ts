@@ -23,6 +23,7 @@ export const TERRAIN_SOURCE_ID = "cargo-terrain-dem";
 export const HILLSHADE_LAYER_ID = "cargo-hillshade";
 
 export const BUILDINGS_AO_LAYER_ID = "cargo-buildings-ao";
+export const OVERTURE_BUILDINGS_SHADOW_LAYER_ID = "cargo-overture-buildings-shadow";
 export const BUILDINGS_PLINTH_LAYER_ID = "cargo-buildings-plinth";
 export const OSM_BUILDINGS_3D_LAYER_ID = "cargo-osm-buildings-3d";
 export const BUILDINGS_3D_LAYER_ID = "cargo-buildings-3d";
@@ -31,6 +32,7 @@ export const BUILDINGS_ROOF_CAP_LAYER_ID = "cargo-buildings-roof-cap";
 
 const ALL_3D_BUILDING_LAYERS = [
   BUILDINGS_AO_LAYER_ID,
+  OVERTURE_BUILDINGS_SHADOW_LAYER_ID,
   BUILDINGS_PLINTH_LAYER_ID,
   OSM_BUILDINGS_3D_LAYER_ID,
   BUILDINGS_3D_LAYER_ID,
@@ -159,12 +161,12 @@ export function apply3dBuildingsLayer(map: MapLibreMap, visible = true): void {
               type: "fill",
               source: osmRef.source,
               "source-layer": osmRef.sourceLayer,
-              minzoom: 13,
+              minzoom: 12.5,
               layout: { visibility: visible ? "visible" : "none" },
               paint: {
-                "fill-color": "#09090B",
-                "fill-opacity": 0.28,
-                "fill-translate": [3, 3],
+                "fill-color": "#020617",
+                "fill-opacity": 0.36,
+                "fill-translate": [5.5, -4],
                 "fill-translate-anchor": "viewport",
               },
             },
@@ -239,6 +241,26 @@ export function apply3dBuildingsLayer(map: MapLibreMap, visible = true): void {
     ] as unknown as number;
 
     const overtureBaseExpr = ["coalesce", ["get", "min_height"], 0] as unknown as number;
+
+    if (!map.getLayer(OVERTURE_BUILDINGS_SHADOW_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: OVERTURE_BUILDINGS_SHADOW_LAYER_ID,
+          type: "fill",
+          source: OVERTURE_BUILDINGS_SOURCE_ID,
+          "source-layer": "building",
+          minzoom: 13.8,
+          layout: { visibility: visible ? "visible" : "none" },
+          paint: {
+            "fill-color": "#020617",
+            "fill-opacity": 0.38,
+            "fill-translate": [6, -4.5],
+            "fill-translate-anchor": "viewport",
+          },
+        },
+        beforeId,
+      );
+    }
 
     if (!map.getLayer(BUILDINGS_PLINTH_LAYER_ID)) {
       map.addLayer(
