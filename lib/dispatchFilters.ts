@@ -1,5 +1,5 @@
 import { isActiveTripPhase } from "@/lib/tripMachine";
-import type { Tier, Trip, Vehicle, VehicleStatus } from "@/types/fleet";
+import type { CityId, Tier, Trip, Vehicle, VehicleStatus, VehicleStatusFilter } from "@/types/fleet";
 
 const STATUS_PRIORITY: Record<VehicleStatus, number> = {
   alert: 0,
@@ -9,6 +9,19 @@ const STATUS_PRIORITY: Record<VehicleStatus, number> = {
   offline: 4,
 };
 
+function matchesStatusFilter(vehicle: Vehicle, statusFilter: VehicleStatusFilter): boolean {
+  switch (statusFilter) {
+    case "all":
+      return true;
+    case "on_trip":
+      return vehicle.status === "on_trip" || vehicle.status === "enroute_pickup";
+    case "idle":
+      return vehicle.status === "idle";
+    case "alert":
+      return vehicle.status === "alert" || Boolean(vehicle.flagged);
+  }
+}
+
 /**
  * Filters and sorts fleet units for the `/dispatch` sidebar.
  * Priority: flagged alerts first, then active trips, arriving units, idle, and offline.
@@ -17,12 +30,14 @@ export function filterFleetVehicles(
   vehicles: ReadonlyArray<Vehicle>,
   tierFilter: "all" | Tier,
   query: string,
+  statusFilter: VehicleStatusFilter = "all",
 ): Vehicle[] {
   const q = query.trim().toLowerCase();
 
   return vehicles
     .filter((v) => {
       if (tierFilter !== "all" && v.tier !== tierFilter) return false;
+      if (!matchesStatusFilter(v, statusFilter)) return false;
       if (!q) return true;
       return (
         v.id.toLowerCase().includes(q) ||
@@ -73,4 +88,70 @@ export function formatClockTime(timestampMs: number): string {
   const mm = String(d.getMinutes()).padStart(2, "0");
   const ss = String(d.getSeconds()).padStart(2, "0");
   return `${hh}:${mm}:${ss}`;
+}
+
+function csvCell(value: string | number | boolean | undefined): string {
+  const str = value === undefined ? "" : String(value);
+  if (/[",\n\r]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+/**
+ * Exports a clean RFC-4180 CSV snapshot of all fleet units and active trip assignments
+ * for operational reporting in `/dispatch`.
+ */
+export function buildFleetTelemetryCsv(
+  cityId: CityId,
+  vehicles: ReadonlyArray<Vehicle>,
+  trips: ReadonlyArray<Trip>,
+): string {
+  const tripById = new Map<string, Trip>();
+  for (const t of trips) {
+    tripById.set(t.id, t);
+  }
+
+  const header = [
+    "city",
+    "unit_id",
+    "plate",
+    "tier",
+    "status",
+    "driver_name",
+    "driver_phone",
+    "driver_rating",
+    "speed_kmh",
+    "bearing_deg",
+    "lng",
+    "lat",
+    "nearest_landmark",
+    "active_trip_id",
+    "trip_phase",
+    "fare_etb",
+  ].join(",");
+
+  const rows = vehicles.map((v) => {
+    const trip = v.tripId ? tripById.get(v.tripId) : undefined;
+    return [
+      csvCell(cityId),
+      csvCell(v.id),
+      csvCell(v.plate),
+      csvCell(v.tier),
+      csvCell(v.status),
+      csvCell(v.driver.name),
+      csvCell(v.driver.phone),
+      csvCell(v.driver.rating.toFixed(2)),
+      csvCell(v.speedKmh),
+      csvCell(Math.round(v.bearing)),
+      csvCell(v.position[0].toFixed(6)),
+      csvCell(v.position[1].toFixed(6)),
+      csvCell(v.landmark),
+      csvCell(trip?.id ?? ""),
+      csvCell(trip?.phase ?? ""),
+      csvCell(trip ? trip.fareEtb : ""),
+    ].join(",");
+  });
+
+  return [header, ...rows].join("\n");
 }

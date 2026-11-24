@@ -130,6 +130,30 @@ export interface Strings {
   loadingTelemetry: string;
   loadingMap: string;
   nearPrefix: string;
+
+  // Map Style & Service-Ready Additions
+  mapModeVector: string;
+  mapModeSat: string;
+  searchPlacePlaceholder: string;
+  noPlacesFound: string;
+  swapLocations: string;
+  recentRides: string;
+  fareDetails: string;
+  baseFare: string;
+  distanceCharge: string;
+  timeCharge: string;
+  minimumFareNote: string;
+  pickupSpotLabel: string;
+  callDriver: string;
+  quickNoteAtGate: string;
+  quickNoteBesideBank: string;
+  quickNoteOnMyWay: string;
+  exportCsv: string;
+  statusAll: string;
+  statusActive: string;
+  statusIdle: string;
+  statusAlert: string;
+  tripIdLabel: string;
 }
 
 const EN_STRINGS: Strings = {
@@ -248,6 +272,29 @@ const EN_STRINGS: Strings = {
   loadingTelemetry: "Loading telemetry…",
   loadingMap: "Loading 3D map…",
   nearPrefix: "Near",
+
+  mapModeVector: "Map",
+  mapModeSat: "Sat",
+  searchPlacePlaceholder: "Search landmark or neighborhood…",
+  noPlacesFound: "No matching places in this city.",
+  swapLocations: "Swap pickup and destination",
+  recentRides: "Recent",
+  fareDetails: "Fare breakdown",
+  baseFare: "Base fare",
+  distanceCharge: "Distance",
+  timeCharge: "Time",
+  minimumFareNote: "Minimum tier fare applied",
+  pickupSpotLabel: "Pickup spot & note",
+  callDriver: "Call",
+  quickNoteAtGate: "At main gate",
+  quickNoteBesideBank: "Beside bank",
+  quickNoteOnMyWay: "On my way",
+  exportCsv: "CSV",
+  statusAll: "All",
+  statusActive: "Active",
+  statusIdle: "Available",
+  statusAlert: "Alerts",
+  tripIdLabel: "Trip ID",
 };
 
 const AM_STRINGS: Strings = {
@@ -366,6 +413,29 @@ const AM_STRINGS: Strings = {
   loadingTelemetry: "መረጃ በመጫን ላይ…",
   loadingMap: "3D ካርታ በመጫን ላይ…",
   nearPrefix: "በአቅራቢያ",
+
+  mapModeVector: "ካርታ",
+  mapModeSat: "ሳተላይት",
+  searchPlacePlaceholder: "ቦታ ወይም ሰፈር ይፈልጉ…",
+  noPlacesFound: "በዚህ ከተማ ተዛማጅ ቦታ አልተገኘም።",
+  swapLocations: "መነሻና መድረሻ አቀያይር",
+  recentRides: "የቅርብ ጉዞ",
+  fareDetails: "የዋጋ ዝርዝር",
+  baseFare: "መነሻ ዋጋ",
+  distanceCharge: "የርቀት ክፍያ",
+  timeCharge: "የጊዜ ክፍያ",
+  minimumFareNote: "ዝቅተኛ የደረጃ ዋጋ ተተግብሯል",
+  pickupSpotLabel: "የመነሻ ምልክትና ማስታወሻ",
+  callDriver: "ደውል",
+  quickNoteAtGate: "ዋና በር ጋር ነኝ",
+  quickNoteBesideBank: "ባንክ አጠገብ ነኝ",
+  quickNoteOnMyWay: "እየወጣሁ ነው",
+  exportCsv: "CSV",
+  statusAll: "ሁሉም",
+  statusActive: "በጉዞ",
+  statusIdle: "ዝግጁ",
+  statusAlert: "አደጋ",
+  tripIdLabel: "የጉዞ መለያ",
 };
 
 export function getStrings(locale: Locale): Strings {

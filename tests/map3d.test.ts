@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  BUILDINGS_AO_LAYER_ID,
+  BUILDINGS_PLINTH_LAYER_ID,
+  BUILDINGS_ROOF_CAP_LAYER_ID,
   CAMERA_PRESETS,
   ESRI_WORLD_IMAGERY_TILES,
   MAP_MAX_ZOOM,
@@ -7,6 +10,7 @@ import {
   OVERTURE_BUILDINGS_PMTILES,
   SATELLITE_MAX_ZOOM,
 } from "@/components/map/map3d";
+import { ENV_LANDMARKS_LABEL_LAYER_ID, ROUTE_ARROWS_LAYER_ID } from "@/components/map/mapLayers";
 import { buildCity3dSceneGeoJson } from "@/components/map/mapTrees";
 import {
   PIN_DROPOFF_SPRITE_ID,
@@ -26,6 +30,7 @@ import {
 import { CITIES, CITY_ORDER } from "@/lib/cities";
 import { haversineMeters } from "@/lib/geo";
 import { TIER_ORDER } from "@/lib/tiers";
+import { useFleetStore } from "@/store/useFleetStore";
 import type { LngLat } from "@/types/fleet";
 
 describe("3D map vehicle sprites, pins & geometry", () => {
@@ -93,6 +98,8 @@ describe("3D map vehicle sprites, pins & geometry", () => {
       { id: "V4", tier: "cargo", status: "alert", position: origin, bearing: 270, plate: "AA 3-A40004", selected: false },
     ]);
     expect(fleet3d.features.length).toBeGreaterThanOrEqual(18);
+    // Verify sculpted 8-vertex tapered vehicle hulls (9 ring coordinates with closure)
+    expect(fleet3d.features[0]?.geometry.coordinates[0]).toHaveLength(9);
     const pinParts = buildPin3dFeatures(origin, "#10B981", "#064E3B", "dropoff");
     expect(pinParts).toHaveLength(3);
     expect(pinParts[2]?.properties?.height).toBe(25);
@@ -102,6 +109,11 @@ describe("3D map vehicle sprites, pins & geometry", () => {
     expect(ESRI_WORLD_IMAGERY_TILES).toContain("World_Imagery/MapServer/tile/{z}/{y}/{x}");
     expect(OVERTURE_BUILDINGS_PMTILES).toContain("2026-11-18.0/buildings.pmtiles");
     expect(OSM_BUILDINGS_3D_LAYER_ID).toBe("cargo-osm-buildings-3d");
+    expect(BUILDINGS_AO_LAYER_ID).toBe("cargo-buildings-ao");
+    expect(BUILDINGS_PLINTH_LAYER_ID).toBe("cargo-buildings-plinth");
+    expect(BUILDINGS_ROOF_CAP_LAYER_ID).toBe("cargo-buildings-roof-cap");
+    expect(ENV_LANDMARKS_LABEL_LAYER_ID).toBe("cargo-env-landmarks-labels");
+    expect(ROUTE_ARROWS_LAYER_ID).toBe("cargo-route-arrows");
     expect(SATELLITE_MAX_ZOOM).toBe(17);
     expect(MAP_MAX_ZOOM).toBeLessThanOrEqual(17.5);
 
@@ -118,10 +130,14 @@ describe("3D map vehicle sprites, pins & geometry", () => {
     expect(wLat).toBeGreaterThanOrEqual(7.84);
     expect(wLat).toBeLessThanOrEqual(7.854);
 
+    // Defaults to Satellite + 3D mode out of the box
+    expect(useFleetStore.getState().mapStyleMode).toBe("satellite");
+    expect(useFleetStore.getState().map3dEnabled).toBe(true);
+
     for (const cityId of CITY_ORDER) {
       const scene = buildCity3dSceneGeoJson(cityId, "en");
-      expect(scene.buildings.features).toHaveLength(0);
-      expect(scene.trees.features).toHaveLength(0);
+      expect(scene.buildings.features.length).toBeGreaterThanOrEqual(80);
+      expect(scene.trees.features.length).toBeGreaterThanOrEqual(40);
       expect(scene.landmarks.features).toHaveLength(CITIES[cityId].landmarks.length);
       for (const feat of scene.landmarks.features) {
         expect(feat.geometry.type).toBe("Point");

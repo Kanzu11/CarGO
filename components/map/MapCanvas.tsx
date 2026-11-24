@@ -14,10 +14,10 @@ import { MapControls } from "@/components/map/MapControls";
 import { PickupCrosshair } from "@/components/map/PickupCrosshair";
 import {
   apply3dBuildingsLayer,
+  applyBasemapTheme,
   applyCameraMode,
   applyFlatSkyAndLight,
   applyMapLanguage,
-  applySatelliteHybridTheme,
   applyTerrainAndHillshade,
   CAMERA_PRESETS,
   CARTO_POSITRON_STYLE,
@@ -31,11 +31,13 @@ import {
 } from "@/components/map/map3d";
 import {
   ensureCargoLayers,
+  ENV_LANDMARKS_LABEL_LAYER_ID,
   ENV_LANDMARKS_LAYER_ID,
   FLEET_3D_LAYER_ID,
   FLEET_SPRITES_LAYER_ID,
   resolvePersonPinState,
   syncFleetLayerMode,
+  syncLandmarkLabelTheme,
   updateCityEnvironmentLayers,
   updateRoutesAndPins,
   updateUserLocationLayer,
@@ -106,6 +108,8 @@ export default function MapCanvas({
   const userGeo = useFleetStore((s) => s.userGeo);
   const map3dEnabled = useFleetStore((s) => s.map3dEnabled);
   const setMap3dEnabled = useFleetStore((s) => s.setMap3dEnabled);
+  const mapStyleMode = useFleetStore((s) => s.mapStyleMode);
+  const setMapStyleMode = useFleetStore((s) => s.setMapStyleMode);
   const trafficEnabled = useFleetStore((s) => s.trafficEnabled);
   const setTrafficEnabled = useFleetStore((s) => s.setTrafficEnabled);
   const trips = useFleetStore((s) => s.trips);
@@ -125,6 +129,7 @@ export default function MapCanvas({
   // Refs for latest callbacks & values inside MapLibre event listeners
   const latestRef = useRef({
     map3dEnabled,
+    mapStyleMode,
     perfTier,
     terrainBlocked,
     locale,
@@ -137,6 +142,7 @@ export default function MapCanvas({
   useEffect(() => {
     latestRef.current = {
       map3dEnabled,
+      mapStyleMode,
       perfTier,
       terrainBlocked,
       locale,
@@ -192,15 +198,16 @@ export default function MapCanvas({
     const setupStyle = () => {
       const {
         map3dEnabled: is3d,
+        mapStyleMode: currentStyleMode,
         perfTier: tier,
         terrainBlocked: blocked,
         locale: currentLocale,
       } = latestRef.current;
-      applySatelliteHybridTheme(map);
+      applyBasemapTheme(map, currentStyleMode);
       apply3dBuildingsLayer(map, is3d);
-      applyFlatSkyAndLight(map, is3d);
+      applyFlatSkyAndLight(map, is3d, currentStyleMode);
       applyTerrainAndHillshade(map, is3d && tier === "full" && !blocked);
-      ensureCargoLayers(map, is3d);
+      ensureCargoLayers(map, is3d, currentStyleMode);
       applyMapLanguage(map, currentLocale);
       updateCityEnvironmentLayers(map, useFleetStore.getState().cityId, currentLocale);
       updateUserLocationLayer(map, null);
@@ -273,15 +280,20 @@ export default function MapCanvas({
         }
       }
 
-      if (latestRef.current.onMapClick && map.getLayer(ENV_LANDMARKS_LAYER_ID)) {
-        const landmarkHit = map.queryRenderedFeatures(event.point, {
-          layers: [ENV_LANDMARKS_LAYER_ID],
-        })[0];
-        if (landmarkHit?.geometry.type === "Point") {
-          const [lng, lat] = landmarkHit.geometry.coordinates;
-          if (typeof lng === "number" && typeof lat === "number") {
-            latestRef.current.onMapClick([Number(lng.toFixed(6)), Number(lat.toFixed(6))]);
-            return;
+      if (latestRef.current.onMapClick) {
+        const landmarkLayers = [ENV_LANDMARKS_LAYER_ID, ENV_LANDMARKS_LABEL_LAYER_ID].filter((id) =>
+          Boolean(map.getLayer(id)),
+        );
+        if (landmarkLayers.length > 0) {
+          const landmarkHit = map.queryRenderedFeatures(event.point, {
+            layers: landmarkLayers,
+          })[0];
+          if (landmarkHit?.geometry.type === "Point") {
+            const [lng, lat] = landmarkHit.geometry.coordinates;
+            if (typeof lng === "number" && typeof lat === "number") {
+              latestRef.current.onMapClick([Number(lng.toFixed(6)), Number(lat.toFixed(6))]);
+              return;
+            }
           }
         }
       }
@@ -348,7 +360,9 @@ export default function MapCanvas({
         : CAMERA_PRESETS["rider-pickup"];
 
     setBuildingsVisibility(map, map3dEnabled);
-    applyFlatSkyAndLight(map, map3dEnabled);
+    applyBasemapTheme(map, mapStyleMode);
+    applyFlatSkyAndLight(map, map3dEnabled, mapStyleMode);
+    syncLandmarkLabelTheme(map, mapStyleMode);
     applyTerrainAndHillshade(map, map3dEnabled && perfTier === "full" && !terrainBlocked);
     syncFleetLayerMode(map, map3dEnabled);
 
@@ -356,7 +370,7 @@ export default function MapCanvas({
       prev3dModeRef.current = map3dEnabled;
       applyCameraMode(map, map3dEnabled, preset.pitch, city.bearing);
     }
-  }, [mapReady, map3dEnabled, perfTier, terrainBlocked, cityId, variant]);
+  }, [mapReady, map3dEnabled, mapStyleMode, perfTier, terrainBlocked, cityId, variant]);
 
   // Sync basemap labels to active English / Amharic locale
   useEffect(() => {
@@ -675,9 +689,16 @@ export default function MapCanvas({
       <div className={cn("pointer-events-none absolute right-3 top-16 z-20", controlsClassName)}>
         <MapControls
           is3d={map3dEnabled}
+          styleMode={mapStyleMode}
           bearing={bearing}
           perfTier={perfTier}
           trafficEnabled={trafficEnabled}
+          mapLabel={s.mapModeVector}
+          satLabel={s.mapModeSat}
+          trafficLabel={s.trafficShort}
+          onToggleStyleMode={() =>
+            setMapStyleMode(mapStyleMode === "vector" ? "satellite" : "vector")
+          }
           onToggleTraffic={() => setTrafficEnabled(!trafficEnabled)}
           onToggle3d={handleToggle3d}
           onRecenter={handleRecenter}

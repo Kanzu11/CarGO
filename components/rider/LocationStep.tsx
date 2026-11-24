@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowRight, LocateFixed, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowUpDown, Clock, LocateFixed, Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import { DestinationPresets } from "@/components/rider/DestinationPresets";
+import { PlaceSearchInput } from "@/components/rider/PlaceSearchInput";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { useRoadRoute } from "@/hooks/useRoadRoute";
@@ -20,8 +21,8 @@ export interface LocationStepProps {
 }
 
 /**
- * Rider Step 1 — Clean Pickup & Destination selection with
- * Real GPS (`GPS`) and Simulated (`Sim`) dual location toggle.
+ * Rider Step 1 — Clean Pickup & Destination selection with bilingual place search,
+ * Real GPS (`GPS`) / Simulated (`Sim`) toggle, 1-tap stop swap, and Recent Rides.
  */
 export function LocationStep({ onRequestGps }: LocationStepProps) {
   const cityId = useFleetStore((s) => s.cityId);
@@ -37,6 +38,9 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
   const setPickingTarget = useFleetStore((s) => s.setPickingTarget);
   const setPickup = useFleetStore((s) => s.setPickup);
   const setDestination = useFleetStore((s) => s.setDestination);
+  const swapPickupAndDestination = useFleetStore((s) => s.swapPickupAndDestination);
+  const recentRiderTrips = useFleetStore((s) => s.recentRiderTrips);
+  const rebookRecentTrip = useFleetStore((s) => s.rebookRecentTrip);
   const proceedToTierStep = useFleetStore((s) => s.proceedToTierStep);
 
   const s = getStrings(locale);
@@ -51,6 +55,11 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
     };
   }, [destination, roadRoute]);
 
+  const cityRecents = useMemo(
+    () => recentRiderTrips.filter((r) => r.cityId === cityId).slice(0, 3),
+    [recentRiderTrips, cityId],
+  );
+
   const handleSelectGps = () => {
     if (userGeo) {
       setLocationSource("real");
@@ -59,7 +68,20 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
+      <PlaceSearchInput
+        cityId={cityId}
+        referenceCoords={pickup.coords}
+        targetLabel={pickingTarget === "pickup" ? s.pickupLabel : s.destinationLabel}
+        onSelectPlace={(place) => {
+          if (pickingTarget === "pickup") {
+            setPickup(place);
+          } else {
+            setDestination(place);
+          }
+        }}
+      />
+
       {/* Pickup block (tap to move pickup pin on map or pick landmark) */}
       <div
         onClick={() => setPickingTarget("pickup")}
@@ -149,42 +171,56 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
         </div>
       </div>
 
-      {/* Destination block (tap to move destination pin on map or pick landmark) */}
+      {/* Destination block + 1-tap swap */}
       <div className="space-y-2">
-        <button
-          type="button"
-          onClick={() => setPickingTarget("destination")}
-          className={cn(
-            "flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors",
-            pickingTarget === "destination"
-              ? "border-live bg-live-soft"
-              : "border-line bg-canvas hover:bg-surface",
-          )}
-        >
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-live" />
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-                  {s.destinationLabel}
+        <div className="flex items-stretch gap-1.5">
+          <button
+            type="button"
+            onClick={() => setPickingTarget("destination")}
+            className={cn(
+              "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors",
+              pickingTarget === "destination"
+                ? "border-live bg-live-soft"
+                : "border-line bg-canvas hover:bg-surface",
+            )}
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-live" />
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                    {s.destinationLabel}
+                  </p>
+                  {pickingTarget === "destination" && (
+                    <span className="rounded bg-live px-1.5 py-px text-[10px] font-medium text-white">
+                      {s.tapMapShort}
+                    </span>
+                  )}
+                </div>
+                <p className="truncate text-[14px] font-semibold text-ink">
+                  {destination ? localizePlaceName(destination, locale) : s.chooseLandmark}
                 </p>
-                {pickingTarget === "destination" && (
-                  <span className="rounded bg-live px-1.5 py-px text-[10px] font-medium text-white">
-                    {s.tapMapShort}
-                  </span>
-                )}
               </div>
-              <p className="truncate text-[14px] font-semibold text-ink">
-                {destination ? localizePlaceName(destination, locale) : s.chooseLandmark}
-              </p>
             </div>
-          </div>
-          {routeSummary && (
-            <span className="num shrink-0 text-[12px] font-medium text-muted">
-              {routeSummary.distanceKm.toFixed(1)} km
-            </span>
+            {routeSummary && (
+              <span className="num shrink-0 text-[12px] font-medium text-muted">
+                {routeSummary.distanceKm.toFixed(1)} km
+              </span>
+            )}
+          </button>
+
+          {destination && (
+            <button
+              type="button"
+              onClick={swapPickupAndDestination}
+              aria-label={s.swapLocations}
+              title={s.swapLocations}
+              className="inline-flex w-10 shrink-0 items-center justify-center rounded-lg border border-line bg-canvas text-ink hover:bg-surface"
+            >
+              <Icon icon={ArrowUpDown} size={15} />
+            </button>
           )}
-        </button>
+        </div>
 
         <DestinationPresets
           cityId={cityId}
@@ -198,6 +234,28 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
             }
           }}
         />
+
+        {cityRecents.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted">
+              <Icon icon={Clock} size={11} />
+              {s.recentRides}:
+            </span>
+            {cityRecents.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => rebookRecentTrip(item)}
+                className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border border-line bg-surface px-2 text-[11px] font-medium text-ink hover:bg-canvas"
+              >
+                <span className="max-w-[150px] truncate">
+                  {localizePlaceName(item.pickup, locale)} → {localizePlaceName(item.dropoff, locale)}
+                </span>
+                <span className="num text-muted">· {formatEtb(item.fareEtb, locale)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <Button

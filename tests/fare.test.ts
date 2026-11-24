@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateTravelMinutes, lockedFare, quoteAllTiers } from "@/lib/fare";
+import { breakdownFare, estimateTravelMinutes, lockedFare, quoteAllTiers } from "@/lib/fare";
 import { TIERS } from "@/lib/tiers";
 
 describe("lockedFare & quoteAllTiers", () => {
@@ -43,5 +43,17 @@ describe("lockedFare & quoteAllTiers", () => {
     expect(Object.keys(quotes)).toEqual(["bajaj", "economy", "minivan", "cargo"]);
     expect(quotes.bajaj.etaMinutes).toBeGreaterThanOrEqual(2);
     expect(estimateTravelMinutes("bajaj", 0)).toBe(2);
+  });
+
+  it("computes itemized upfront fare breakdowns matching lockedFare totals", () => {
+    const shortRide = breakdownFare("economy", 0.2);
+    expect(shortRide.minimumApplied).toBe(true);
+    expect(shortRide.totalEtb).toBe(lockedFare("economy", 0.2));
+
+    const cityRide = breakdownFare("bajaj", 5.2);
+    expect(cityRide.baseEtb).toBe(TIERS.bajaj.baseEtb);
+    expect(cityRide.distanceEtb).toBeGreaterThan(0);
+    expect(cityRide.timeEtb).toBeGreaterThan(0);
+    expect(cityRide.totalEtb).toBe(lockedFare("bajaj", 5.2));
   });
 });

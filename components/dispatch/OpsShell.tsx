@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { FleetSidebar } from "@/components/dispatch/FleetSidebar";
 import { Inspector } from "@/components/dispatch/Inspector";
 import { OpsTopBar } from "@/components/dispatch/OpsTopBar";
@@ -21,6 +21,18 @@ export function OpsShell() {
     () => (selectedVehicleId ? vehicles.find((v) => v.id === selectedVehicleId) : undefined),
     [vehicles, selectedVehicleId],
   );
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && selectedVehicleId) {
+        selectVehicle(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [selectedVehicleId, selectVehicle]);
 
   return (
     <main className="flex h-screen w-full flex-col overflow-hidden bg-surface">

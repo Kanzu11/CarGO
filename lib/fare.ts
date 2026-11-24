@@ -8,6 +8,35 @@ export interface FareQuote {
   fareEtb: number;
 }
 
+export interface FareBreakdown {
+  baseEtb: number;
+  distanceEtb: number;
+  timeEtb: number;
+  minimumApplied: boolean;
+  totalEtb: number;
+}
+
+/**
+ * Itemized breakdown of a locked upfront ETB fare (base + distance + estimated time).
+ */
+export function breakdownFare(tier: Tier, distanceKm: number): FareBreakdown {
+  const meta = TIERS[tier];
+  const safeDistance = Math.max(0, Number.isFinite(distanceKm) ? distanceKm : 0);
+  const minutes = (safeDistance / meta.avgSpeedKmh) * 60;
+  const baseEtb = meta.baseEtb;
+  const distanceEtb = Math.round(meta.perKmEtb * safeDistance);
+  const timeEtb = Math.round(meta.perMinEtb * minutes);
+  const rawRounded = Math.round((meta.baseEtb + meta.perKmEtb * safeDistance + meta.perMinEtb * minutes) / 5) * 5;
+  const totalEtb = Math.max(meta.minimumEtb, rawRounded);
+  return {
+    baseEtb,
+    distanceEtb,
+    timeEtb,
+    minimumApplied: totalEtb > rawRounded,
+    totalEtb,
+  };
+}
+
 /**
  * Deterministic upfront locked ETB fare calculator.
  * Rounded to the nearest 5 ETB and clamped to the tier minimum so riders and

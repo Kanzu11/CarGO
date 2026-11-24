@@ -8,6 +8,7 @@ import type {
   AppMode,
   CityId,
   ClientMessage,
+  CompletedTripSummary,
   ConnStatus,
   DriverJobOffer,
   FleetKpis,
@@ -16,6 +17,7 @@ import type {
   LngLat,
   Locale,
   LocationSource,
+  MapStyleMode,
   PaymentMethod,
   Place,
   RiderStep,
@@ -24,6 +26,7 @@ import type {
   Trip,
   UserGeoPosition,
   Vehicle,
+  VehicleStatusFilter,
   VehicleTelemetryFrame,
 } from "@/types/fleet";
 
@@ -82,6 +85,7 @@ export interface FleetStoreState {
   locale: Locale;
   mode: AppMode;
   map3dEnabled: boolean;
+  mapStyleMode: MapStyleMode;
   locationSource: LocationSource;
   geoStatus: GeoPermissionState;
   userGeo: UserGeoPosition | null;
@@ -89,6 +93,7 @@ export interface FleetStoreState {
   trafficEnabled: boolean;
   selectedVehicleId: string | null;
   tierFilter: "all" | Tier;
+  statusFilter: VehicleStatusFilter;
   searchQuery: string;
   sidebarCollapsed: boolean;
 
@@ -108,6 +113,7 @@ export interface FleetStoreState {
   paymentMethod: PaymentMethod;
   activeRiderTripId: string | null;
   persistedRiderTrip: Trip | null;
+  recentRiderTrips: CompletedTripSummary[];
 
   // Driver mode state (/)
   driverOnline: boolean;
@@ -121,6 +127,7 @@ export interface FleetStoreState {
   setLocale: (locale: Locale) => void;
   setMode: (mode: AppMode) => void;
   setMap3dEnabled: (enabled: boolean) => void;
+  setMapStyleMode: (styleMode: MapStyleMode) => void;
   setLocationSource: (source: LocationSource) => void;
   setGeoStatus: (status: GeoPermissionState) => void;
   applyRealLocation: (coords: LngLat, accuracyM: number, autoFocus?: boolean, forceActivate?: boolean) => void;
@@ -128,6 +135,8 @@ export interface FleetStoreState {
   setPickupFromCoords: (coords: LngLat) => void;
   setDestination: (place: Place | null) => void;
   setDestinationFromCoords: (coords: LngLat) => void;
+  swapPickupAndDestination: () => void;
+  rebookRecentTrip: (summary: CompletedTripSummary) => void;
   setPickingTarget: (target: "pickup" | "destination") => void;
   setLandmarkChip: (chip: LandmarkChip) => void;
   setCustomLandmarkNote: (note: string) => void;
@@ -138,6 +147,7 @@ export interface FleetStoreState {
   confirmRiderBooking: () => void;
   cancelActiveRiderTrip: () => void;
   completeAndResetRiderTrip: (rating?: number) => void;
+  sendRiderQuickNote: (note: string) => void;
   triggerRiderSos: () => void;
 
   // Driver actions
@@ -151,6 +161,7 @@ export interface FleetStoreState {
   setTrafficEnabled: (enabled: boolean) => void;
   selectVehicle: (vehicleId: string | null) => void;
   setTierFilter: (filter: "all" | Tier) => void;
+  setStatusFilter: (filter: VehicleStatusFilter) => void;
   setSearchQuery: (query: string) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   opsReassignDriver: (tripId: string) => void;
@@ -170,6 +181,7 @@ export const useFleetStore = create<FleetStoreState>()(
       locale: "en",
       mode: "rider",
       map3dEnabled: true,
+      mapStyleMode: "satellite",
       locationSource: "simulated",
       geoStatus: "idle",
       userGeo: null,
@@ -177,6 +189,7 @@ export const useFleetStore = create<FleetStoreState>()(
       trafficEnabled: true,
       selectedVehicleId: null,
       tierFilter: "all",
+      statusFilter: "all",
       searchQuery: "",
       sidebarCollapsed: false,
 
@@ -194,6 +207,7 @@ export const useFleetStore = create<FleetStoreState>()(
       paymentMethod: "telebirr",
       activeRiderTripId: null,
       persistedRiderTrip: null,
+      recentRiderTrips: [],
 
       driverOnline: false,
       driverEarningsEtb: 640,
@@ -245,6 +259,10 @@ export const useFleetStore = create<FleetStoreState>()(
 
       setMap3dEnabled: (enabled) => {
         set({ map3dEnabled: enabled });
+      },
+
+      setMapStyleMode: (styleMode) => {
+        set({ mapStyleMode: styleMode });
       },
 
       setGeoStatus: (geoStatus) => {
@@ -406,6 +424,32 @@ export const useFleetStore = create<FleetStoreState>()(
         });
       },
 
+      swapPickupAndDestination: () => {
+        const { pickup, destination } = get();
+        if (!destination) return;
+        set({
+          locationSource: "simulated",
+          pickup: destination,
+          destination: pickup,
+          pickingTarget: "destination",
+        });
+      },
+
+      rebookRecentTrip: (summary) => {
+        if (summary.cityId !== get().cityId) {
+          transportSendRef?.({ type: "city.switch", cityId: summary.cityId });
+        }
+        set({
+          cityId: summary.cityId,
+          locationSource: "simulated",
+          pickup: summary.pickup,
+          destination: summary.dropoff,
+          selectedTier: summary.tier,
+          paymentMethod: summary.payment,
+          riderStep: "tier",
+        });
+      },
+
       setPickingTarget: (target) => {
         set({ pickingTarget: target });
       },
@@ -480,10 +524,34 @@ export const useFleetStore = create<FleetStoreState>()(
       },
 
       completeAndResetRiderTrip: (rating) => {
-        const { activeRiderTripId } = get();
+        const { activeRiderTripId, trips, recentRiderTrips } = get();
+        const completed = activeRiderTripId
+          ? trips.find((t) => t.id === activeRiderTripId)
+          : undefined;
+
+        let nextRecent = recentRiderTrips;
+        if (completed) {
+          const entry: CompletedTripSummary = {
+            id: completed.id,
+            cityId: completed.cityId,
+            tier: completed.tier,
+            pickup: completed.pickup,
+            dropoff: completed.dropoff,
+            fareEtb: completed.fareEtb,
+            distanceKm: completed.distanceKm,
+            payment: completed.payment,
+            completedAt: Date.now(),
+          };
+          const deduped = recentRiderTrips.filter(
+            (r) => !(r.pickup.id === entry.pickup.id && r.dropoff.id === entry.dropoff.id),
+          );
+          nextRecent = [entry, ...deduped].slice(0, 6);
+        }
+
         set({
           activeRiderTripId: null,
           persistedRiderTrip: null,
+          recentRiderTrips: nextRecent,
           riderStep: "location",
           customLandmarkNote: "",
           pickingTarget: "destination",
@@ -499,6 +567,18 @@ export const useFleetStore = create<FleetStoreState>()(
             tone: "live",
           });
         }
+      },
+
+      sendRiderQuickNote: (note) => {
+        const trimmed = note.trim();
+        const { activeRiderTripId } = get();
+        if (!trimmed || !activeRiderTripId) return;
+        set({ customLandmarkNote: trimmed.slice(0, 60) });
+        transportSendRef?.({ type: "ops.note", tripId: activeRiderTripId, note: trimmed });
+        toast("Pickup note sent to driver", {
+          description: trimmed,
+          tone: "live",
+        });
       },
 
       triggerRiderSos: () => {
@@ -603,6 +683,10 @@ export const useFleetStore = create<FleetStoreState>()(
 
       setTierFilter: (filter) => {
         set({ tierFilter: filter });
+      },
+
+      setStatusFilter: (filter) => {
+        set({ statusFilter: filter });
       },
 
       setSearchQuery: (query) => {
@@ -776,13 +860,14 @@ export const useFleetStore = create<FleetStoreState>()(
       },
     }),
     {
-      name: "cargo-fleet-storage-v4",
+      name: "cargo-fleet-storage-v5",
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
       partialize: (state) => ({
         cityId: state.cityId,
         locale: state.locale,
         mode: state.mode,
+        mapStyleMode: state.mapStyleMode,
         pickup: state.pickup,
         destination: state.destination,
         landmarkChip: state.landmarkChip,
@@ -790,6 +875,7 @@ export const useFleetStore = create<FleetStoreState>()(
         selectedTier: state.selectedTier,
         paymentMethod: state.paymentMethod,
         persistedRiderTrip: state.persistedRiderTrip,
+        recentRiderTrips: state.recentRiderTrips,
         driverEarningsEtb: state.driverEarningsEtb,
         driverTripsCompleted: state.driverTripsCompleted,
       }),

@@ -1,11 +1,12 @@
 "use client";
 
 import { CheckCircle2, Star } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
+import { breakdownFare } from "@/lib/fare";
 import {
   formatEtb,
   getStrings,
@@ -28,6 +29,10 @@ export function TripReceipt({ trip, onDone }: TripReceiptProps) {
   const [rating, setRating] = useState(5);
   const locale = useFleetStore((s) => s.locale);
   const s = getStrings(locale);
+  const breakdown = useMemo(
+    () => breakdownFare(trip.tier, trip.distanceKm),
+    [trip.tier, trip.distanceKm],
+  );
 
   return (
     <div className="space-y-3">
@@ -50,15 +55,16 @@ export function TripReceipt({ trip, onDone }: TripReceiptProps) {
         </div>
       </div>
 
-      <div className="rounded-lg border border-line bg-surface p-2.5 text-[12px]">
+      <div className="space-y-1.5 rounded-lg border border-line bg-surface p-2.5 text-[12px]">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate font-medium text-ink">
             {localizePlaceName(trip.pickup, locale)} →{" "}
             {localizePlaceName(trip.dropoff, locale)}
           </span>
+          <span className="num shrink-0 font-mono text-[11px] text-muted">{trip.id}</span>
         </div>
         {trip.driver && (
-          <p className="mt-1 text-muted">
+          <p className="text-muted">
             {s.driverLabel}: <span className="font-medium text-ink">{trip.driver.name}</span>
             {trip.plate ? (
               <>
@@ -68,6 +74,13 @@ export function TripReceipt({ trip, onDone }: TripReceiptProps) {
             ) : null}
           </p>
         )}
+        <div className="flex items-center justify-between border-t border-line pt-1.5 text-[11px] text-muted">
+          <span>
+            {s.baseFare} {formatEtb(breakdown.baseEtb, locale)} + {s.distanceCharge}{" "}
+            {formatEtb(breakdown.distanceEtb + breakdown.timeEtb, locale)}
+          </span>
+          <span className="num font-semibold text-ink">{formatEtb(trip.fareEtb, locale)}</span>
+        </div>
       </div>
 
       <div className="flex items-center justify-between rounded-lg border border-line bg-canvas px-3 py-2">

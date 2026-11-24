@@ -33,6 +33,7 @@ export function OnlineSwitch() {
           <div className="flex items-center gap-1.5">
             <Badge>{localizeTier(playerVehicle.tier, locale).name}</Badge>
             <Badge mono>{playerVehicle.plate}</Badge>
+            <Badge tone="live">{playerVehicle.driver.rating.toFixed(1)}★</Badge>
           </div>
         )}
       </div>

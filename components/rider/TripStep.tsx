@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, ShieldAlert, Star } from "lucide-react";
+import { MapPin, MessageSquare, Phone, ShieldAlert, Star } from "lucide-react";
 import { TripReceipt } from "@/components/rider/TripReceipt";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -16,6 +16,7 @@ import {
   localizeTier,
 } from "@/lib/i18n";
 import { useFleetStore } from "@/store/useFleetStore";
+import { toast } from "@/store/useToastStore";
 import type { Locale, Trip, TripPhase } from "@/types/fleet";
 
 interface PhaseCopy {
@@ -83,6 +84,7 @@ export function TripStep({ trip }: TripStepProps) {
   const locale = useFleetStore((s) => s.locale);
   const cancelActiveRiderTrip = useFleetStore((s) => s.cancelActiveRiderTrip);
   const completeAndResetRiderTrip = useFleetStore((s) => s.completeAndResetRiderTrip);
+  const sendRiderQuickNote = useFleetStore((s) => s.sendRiderQuickNote);
   const triggerRiderSos = useFleetStore((s) => s.triggerRiderSos);
 
   if (trip.phase === "COMPLETED") {
@@ -180,13 +182,45 @@ export function TripStep({ trip }: TripStepProps) {
                 </p>
               </div>
             </div>
-            {trip.plate && <Badge mono>{trip.plate}</Badge>}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {trip.plate && <Badge mono>{trip.plate}</Badge>}
+              <a
+                href={`tel:${trip.driver.phone}`}
+                onClick={() =>
+                  toast(`${s.callDriver}: ${trip.driver?.name}`, {
+                    description: trip.driver?.phone,
+                    tone: "neutral",
+                  })
+                }
+                aria-label={`${s.callDriver} ${trip.driver.name}`}
+                className="inline-flex h-7 items-center gap-1 rounded-lg border border-line bg-canvas px-2 text-[11px] font-medium text-ink hover:bg-surface"
+              >
+                <Icon icon={Phone} size={11} />
+                <span>{s.callDriver}</span>
+              </a>
+            </div>
           </div>
 
           {trip.landmarkNote && (
             <div className="flex items-center gap-1.5 rounded-[6px] border border-line bg-canvas px-2 py-1 text-[12px] text-ink">
               <Icon icon={MapPin} size={13} className="shrink-0 text-live" />
               <span className="truncate">{trip.landmarkNote}</span>
+            </div>
+          )}
+
+          {canCancel && (
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+              <Icon icon={MessageSquare} size={12} className="shrink-0 text-muted" />
+              {[s.quickNoteAtGate, s.quickNoteBesideBank, s.quickNoteOnMyWay].map((quick) => (
+                <button
+                  key={quick}
+                  type="button"
+                  onClick={() => sendRiderQuickNote(quick)}
+                  className="h-6 shrink-0 rounded-[6px] border border-line bg-canvas px-2 text-[11px] font-medium text-ink hover:bg-surface"
+                >
+                  {quick}
+                </button>
+              ))}
             </div>
           )}
         </div>

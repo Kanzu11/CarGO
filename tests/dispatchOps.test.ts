@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { CITIES } from "@/lib/cities";
-import { filterActiveTrips, filterFleetVehicles, formatClockTime } from "@/lib/dispatchFilters";
+import {
+  buildFleetTelemetryCsv,
+  filterActiveTrips,
+  filterFleetVehicles,
+  formatClockTime,
+} from "@/lib/dispatchFilters";
 import { FleetSimulator } from "@/lib/fleetSimulator";
 import { useFleetStore } from "@/store/useFleetStore";
 
@@ -43,6 +48,21 @@ describe("Phase 5 Dispatch Ops filters & store actions", () => {
 
     const activeTrips = filterActiveTrips(updatedSnap.trips, "all", "");
     expect(activeTrips.length).toBeGreaterThanOrEqual(4);
+
+    // Status filter pills (alert, on_trip, idle)
+    const alertsOnly = filterFleetVehicles(updatedSnap.vehicles, "all", "", "alert");
+    expect(alertsOnly).toHaveLength(1);
+    expect(alertsOnly[0]?.id).toBe(first.id);
+
+    const idleOnly = filterFleetVehicles(updatedSnap.vehicles, "all", "", "idle");
+    expect(idleOnly.every((v) => v.status === "idle")).toBe(true);
+
+    // CSV telemetry export
+    const csv = buildFleetTelemetryCsv("adama", updatedSnap.vehicles, updatedSnap.trips);
+    const lines = csv.split("\n");
+    expect(lines).toHaveLength(21);
+    expect(lines[0]).toContain("city,unit_id,plate,tier,status");
+    expect(lines[1]).toContain("adama,");
   });
 
   it("formats timeline clock times consistently", () => {

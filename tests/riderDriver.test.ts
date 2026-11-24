@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { CITIES } from "@/lib/cities";
 import { driverInitials, estimateNearestTierEtaMin, paymentMethodLabel } from "@/lib/eta";
 import { FleetSimulator } from "@/lib/fleetSimulator";
+import { searchLocalPlaces } from "@/lib/placeSearch";
 import { useFleetStore } from "@/store/useFleetStore";
 
 describe("Phase 4 Rider & Driver helpers + store flows", () => {
@@ -84,10 +85,12 @@ describe("Phase 4 Rider & Driver helpers + store flows", () => {
     expect(completedTrip?.phase).toBe("COMPLETED");
     expect(completedTrip?.payment).toBe("cbe_birr");
 
-    // Rider taps Done -> returns to Step 1 and subsequent ticks + async trip.rate updates stay on Step 1
+    // Rider taps Done -> returns to Step 1, records Recent Ride, and stays on Step 1
     useFleetStore.getState().completeAndResetRiderTrip(5);
     expect(useFleetStore.getState().riderStep).toBe("location");
     expect(useFleetStore.getState().activeRiderTripId).toBeNull();
+    expect(useFleetStore.getState().recentRiderTrips).toHaveLength(1);
+    expect(useFleetStore.getState().recentRiderTrips[0]?.id).toBe(completedTrip?.id);
 
     // Simulate async BroadcastChannel/server delivery of rated COMPLETED trip.updated
     useFleetStore.getState().applyServerMessage({
@@ -163,6 +166,39 @@ describe("Phase 4 Rider & Driver helpers + store flows", () => {
       expect(state.vehicles[0]?.cityId).toBe(targetCity);
       expect(state.vehicles[0]?.plate.startsWith(CITIES[targetCity].platePrefix)).toBe(true);
     }
+
+    unsub();
+  });
+
+  it("searches landmarks & neighborhoods bilingually, swaps stops, and sends quick pickup notes", () => {
+    const enMatches = searchLocalPlaces("addis", "Kazanchis", "en");
+    expect(enMatches[0]?.place.id).toBe("addis-kazanchis");
+
+    const amMatches = searchLocalPlaces("addis", "ቦሌ", "am");
+    expect(amMatches.length).toBeGreaterThanOrEqual(2);
+
+    const hoodMatches = searchLocalPlaces("addis", "Sarbet", "en");
+    expect(hoodMatches[0]?.place.id).toBe("addis-nb-sarbet");
+
+    // Swap pickup <-> destination
+    const origPickup = useFleetStore.getState().pickup;
+    const origDest = useFleetStore.getState().destination!;
+    useFleetStore.getState().swapPickupAndDestination();
+    expect(useFleetStore.getState().pickup.id).toBe(origDest.id);
+    expect(useFleetStore.getState().destination?.id).toBe(origPickup.id);
+
+    // Quick pickup note updates live trip note
+    const sim = new FleetSimulator("adama");
+    const now = 1_700_000_000_000;
+    useFleetStore.getState().bindTransportSend((msg) => sim.handleClientMessage(msg, now));
+    const unsub = sim.subscribe((msg) => useFleetStore.getState().applyServerMessage(msg));
+
+    useFleetStore.getState().confirmRiderBooking();
+    useFleetStore.getState().sendRiderQuickNote("At main gate");
+    const active = useFleetStore
+      .getState()
+      .trips.find((t) => t.id === useFleetStore.getState().activeRiderTripId);
+    expect(active?.landmarkNote).toBe("At main gate");
 
     unsub();
   });

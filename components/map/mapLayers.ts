@@ -1,7 +1,7 @@
 import type { Feature, FeatureCollection, LineString, Point, Polygon } from "geojson";
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { findFirstSymbolLayerId } from "@/components/map/map3d";
-import { buildCityLandmarksGeoJson } from "@/components/map/mapTrees";
+import { buildCity3dSceneGeoJson } from "@/components/map/mapTrees";
 import {
   PIN_DROPOFF_SPRITE_ID,
   PIN_PERSON_SPRITE_ID,
@@ -12,10 +12,21 @@ import {
   buildPin3dPolygon,
   localMetersToLngLat,
 } from "@/components/map/vehicleModels";
-import { haversineMeters } from "@/lib/geo";
 import { registerVehicleSprites } from "@/components/map/vehicleSprites";
-import type { CityId, LngLat, Locale, LocationSource, Trip, TripPhase, UserGeoPosition } from "@/types/fleet";
+import { haversineMeters } from "@/lib/geo";
+import type {
+  CityId,
+  LngLat,
+  Locale,
+  LocationSource,
+  MapStyleMode,
+  Trip,
+  TripPhase,
+  UserGeoPosition,
+} from "@/types/fleet";
 
+export const ENV_BUILDINGS_SOURCE_ID = "cargo-env-buildings";
+export const ENV_TREES_SOURCE_ID = "cargo-env-trees";
 export const ENV_LANDMARKS_SOURCE_ID = "cargo-env-landmarks";
 export const ROUTES_SOURCE_ID = "cargo-routes";
 export const PINS_3D_SOURCE_ID = "cargo-pins-3d";
@@ -25,11 +36,17 @@ export const FLEET_3D_SOURCE_ID = "cargo-fleet-3d";
 export const USER_ACCURACY_SOURCE_ID = "cargo-user-accuracy";
 export const USER_DOT_SOURCE_ID = "cargo-user-dot";
 
+export const ROUTE_ARROW_SPRITE_ID = "cargo-route-arrow";
+
+export const ENV_BUILDINGS_3D_LAYER_ID = "cargo-env-buildings-3d";
+export const ENV_TREES_3D_LAYER_ID = "cargo-env-trees-3d";
 export const ENV_LANDMARKS_LAYER_ID = "cargo-env-landmarks-dots";
+export const ENV_LANDMARKS_LABEL_LAYER_ID = "cargo-env-landmarks-labels";
 export const ROUTE_APPROACH_LAYER_ID = "cargo-route-approach";
 export const ROUTE_HALO_LAYER_ID = "cargo-route-halo";
 export const ROUTE_CASING_LAYER_ID = "cargo-route-casing";
 export const ROUTE_MAIN_LAYER_ID = "cargo-route-main";
+export const ROUTE_ARROWS_LAYER_ID = "cargo-route-arrows";
 export const FLEET_SPRITES_LAYER_ID = "cargo-fleet-sprites-layer";
 export const FLEET_3D_LAYER_ID = "cargo-fleet-3d-layer";
 export const USER_ACCURACY_LAYER_ID = "cargo-user-accuracy-layer";
@@ -53,14 +70,54 @@ function ensureGeoJsonSource(map: MapLibreMap, id: string): void {
   });
 }
 
+function registerRouteArrowSprite(map: MapLibreMap): void {
+  if (map.hasImage(ROUTE_ARROW_SPRITE_ID) || typeof document === "undefined") return;
+  const size = 32;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  // Crisp directional chevron pointing along +X (forward along route polyline)
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  ctx.beginPath();
+  ctx.moveTo(10, 8);
+  ctx.lineTo(22, 16);
+  ctx.lineTo(10, 24);
+  ctx.strokeStyle = "#064E3B";
+  ctx.lineWidth = 6.5;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(10, 8);
+  ctx.lineTo(22, 16);
+  ctx.lineTo(10, 24);
+  ctx.strokeStyle = "#FFFFFF";
+  ctx.lineWidth = 3.2;
+  ctx.stroke();
+
+  map.addImage(ROUTE_ARROW_SPRITE_ID, ctx.getImageData(0, 0, size, size), { pixelRatio: 2 });
+}
+
 /**
  * Installs all CarGo GeoJSON sources & layers (approach/trip routes with white
- * contrast halo, top-down tier-distinct vehicle sprites, and 3D pickup/dropoff stems).
+ * contrast halo + directional chevrons, landmark callout pills, sculpted 3D vehicles,
+ * and 3D pickup/dropoff stems).
  */
-export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
+export function ensureCargoLayers(
+  map: MapLibreMap,
+  is3d: boolean,
+  styleMode: MapStyleMode = "satellite",
+): void {
   registerVehicleSprites(map);
   registerPinSprites(map);
+  registerRouteArrowSprite(map);
 
+  ensureGeoJsonSource(map, ENV_BUILDINGS_SOURCE_ID);
+  ensureGeoJsonSource(map, ENV_TREES_SOURCE_ID);
   ensureGeoJsonSource(map, ENV_LANDMARKS_SOURCE_ID);
   ensureGeoJsonSource(map, ROUTES_SOURCE_ID);
   ensureGeoJsonSource(map, PINS_3D_SOURCE_ID);
@@ -72,6 +129,66 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
 
   const beforeSymbol = findFirstSymbolLayerId(map);
 
+  if (!map.getLayer(ENV_BUILDINGS_3D_LAYER_ID)) {
+    map.addLayer(
+      {
+        id: ENV_BUILDINGS_3D_LAYER_ID,
+        type: "fill-extrusion",
+        source: ENV_BUILDINGS_SOURCE_ID,
+        minzoom: 12,
+        layout: {
+          visibility: is3d ? "visible" : "none",
+        },
+        paint: {
+          "fill-extrusion-color": ["get", "color"],
+          "fill-extrusion-height": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            12,
+            0,
+            12.8,
+            ["get", "height"],
+          ],
+          "fill-extrusion-base": ["coalesce", ["get", "base"], 0],
+          "fill-extrusion-vertical-gradient": true,
+          "fill-extrusion-opacity": 0.97,
+        },
+      },
+      beforeSymbol,
+    );
+  }
+
+  if (!map.getLayer(ENV_TREES_3D_LAYER_ID)) {
+    map.addLayer(
+      {
+        id: ENV_TREES_3D_LAYER_ID,
+        type: "fill-extrusion",
+        source: ENV_TREES_SOURCE_ID,
+        minzoom: 13,
+        layout: {
+          visibility: is3d ? "visible" : "none",
+        },
+        paint: {
+          "fill-extrusion-color": ["get", "color"],
+          "fill-extrusion-height": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            13,
+            0,
+            13.6,
+            ["get", "height"],
+          ],
+          "fill-extrusion-base": ["coalesce", ["get", "base"], 0],
+          "fill-extrusion-vertical-gradient": true,
+          "fill-extrusion-opacity": 0.96,
+        },
+      },
+      beforeSymbol,
+    );
+  }
+
   if (!map.getLayer(ENV_LANDMARKS_LAYER_ID)) {
     map.addLayer(
       {
@@ -80,14 +197,37 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
         source: ENV_LANDMARKS_SOURCE_ID,
         minzoom: 12,
         paint: {
-          "circle-radius": 4.5,
-          "circle-color": "#10B981",
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 4, 15.5, 5.5],
+          "circle-color": "#059669",
           "circle-stroke-color": "#FFFFFF",
-          "circle-stroke-width": 2,
+          "circle-stroke-width": 2.2,
         },
       },
       beforeSymbol,
     );
+  }
+
+  if (!map.getLayer(ENV_LANDMARKS_LABEL_LAYER_ID)) {
+    const isSat = styleMode === "satellite";
+    map.addLayer({
+      id: ENV_LANDMARKS_LABEL_LAYER_ID,
+      type: "symbol",
+      source: ENV_LANDMARKS_SOURCE_ID,
+      minzoom: 12.8,
+      layout: {
+        "text-field": ["get", "label"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 12.8, 10.5, 16, 12],
+        "text-offset": [0, 0.75],
+        "text-anchor": "top",
+        "text-max-width": 10,
+        "text-optional": true,
+      },
+      paint: {
+        "text-color": isSat ? "#F8FAFC" : "#0F172A",
+        "text-halo-color": isSat ? "#09090B" : "#FFFFFF",
+        "text-halo-width": 2,
+      },
+    });
   }
 
   if (!map.getLayer(ROUTE_APPROACH_LAYER_ID)) {
@@ -101,9 +241,9 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
         "line-join": "round",
       },
       paint: {
-        "line-color": "#F59E0B",
+        "line-color": "#D97706",
         "line-dasharray": [2, 2],
-        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 2.5, 16, 4.2],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 2.8, 16, 4.5],
         "line-opacity": 0.95,
       },
     });
@@ -121,8 +261,8 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
       },
       paint: {
         "line-color": "#FFFFFF",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 8.5, 16, 12.5],
-        "line-opacity": 0.95,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 9, 16, 13],
+        "line-opacity": 0.96,
       },
     });
   }
@@ -139,8 +279,8 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
       },
       paint: {
         "line-color": "#064E3B",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 6, 16, 9],
-        "line-opacity": 0.95,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 6.4, 16, 9.6],
+        "line-opacity": 0.96,
       },
     });
   }
@@ -157,7 +297,25 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
       },
       paint: {
         "line-color": "#10B981",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 3.8, 16, 6.2],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 4.2, 16, 6.8],
+      },
+    });
+  }
+
+  if (!map.getLayer(ROUTE_ARROWS_LAYER_ID)) {
+    map.addLayer({
+      id: ROUTE_ARROWS_LAYER_ID,
+      type: "symbol",
+      source: ROUTES_SOURCE_ID,
+      filter: ["==", ["get", "kind"], "trip"],
+      minzoom: 12.5,
+      layout: {
+        "symbol-placement": "line",
+        "symbol-spacing": 85,
+        "icon-image": ROUTE_ARROW_SPRITE_ID,
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 12.5, 0.55, 16, 0.78],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
       },
     });
   }
@@ -168,7 +326,7 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
         id: FLEET_3D_LAYER_ID,
         type: "fill-extrusion",
         source: FLEET_3D_SOURCE_ID,
-        minzoom: 11.5,
+        minzoom: 12.5,
         layout: {
           visibility: is3d ? "visible" : "none",
         },
@@ -177,7 +335,7 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
           "fill-extrusion-height": ["get", "height"],
           "fill-extrusion-base": ["get", "base"],
           "fill-extrusion-vertical-gradient": true,
-          "fill-extrusion-opacity": 0.96,
+          "fill-extrusion-opacity": 1,
         },
       },
       beforeSymbol,
@@ -202,15 +360,15 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
           ["exponential", 1.5],
           ["zoom"],
           11,
-          0.52,
+          0.5,
           13,
-          0.78,
+          0.74,
           14.5,
-          1.05,
+          0.98,
           16,
-          1.3,
+          1.22,
           17.2,
-          1.55,
+          1.45,
         ],
       },
       paint: {
@@ -248,7 +406,7 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
         "fill-extrusion-height": ["get", "height"],
         "fill-extrusion-base": ["coalesce", ["get", "base"], 0],
         "fill-extrusion-vertical-gradient": true,
-        "fill-extrusion-opacity": 0.92,
+        "fill-extrusion-opacity": 0.96,
       },
     });
   }
@@ -345,27 +503,50 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
   }
 }
 
+export function syncLandmarkLabelTheme(map: MapLibreMap, styleMode: MapStyleMode): void {
+  if (!map.getLayer(ENV_LANDMARKS_LABEL_LAYER_ID)) return;
+  const isSat = styleMode === "satellite";
+  map.setPaintProperty(ENV_LANDMARKS_LABEL_LAYER_ID, "text-color", isSat ? "#F8FAFC" : "#0F172A");
+  map.setPaintProperty(
+    ENV_LANDMARKS_LABEL_LAYER_ID,
+    "text-halo-color",
+    isSat ? "#09090B" : "#FFFFFF",
+  );
+}
+
 export function syncFleetLayerMode(map: MapLibreMap, is3d: boolean): void {
+  const vis3d = is3d ? "visible" : "none";
+  if (map.getLayer(ENV_BUILDINGS_3D_LAYER_ID)) {
+    map.setLayoutProperty(ENV_BUILDINGS_3D_LAYER_ID, "visibility", vis3d);
+  }
+  if (map.getLayer(ENV_TREES_3D_LAYER_ID)) {
+    map.setLayoutProperty(ENV_TREES_3D_LAYER_ID, "visibility", vis3d);
+  }
   if (map.getLayer(PINS_3D_STEM_LAYER_ID)) {
-    map.setLayoutProperty(PINS_3D_STEM_LAYER_ID, "visibility", is3d ? "visible" : "none");
+    map.setLayoutProperty(PINS_3D_STEM_LAYER_ID, "visibility", vis3d);
   }
   if (map.getLayer(FLEET_3D_LAYER_ID)) {
-    map.setLayoutProperty(FLEET_3D_LAYER_ID, "visibility", is3d ? "visible" : "none");
+    map.setLayoutProperty(FLEET_3D_LAYER_ID, "visibility", vis3d);
   }
   if (map.getLayer(FLEET_SPRITES_LAYER_ID)) {
     map.setLayoutProperty(FLEET_SPRITES_LAYER_ID, "visibility", "visible");
   }
 }
 
-/** Populates localized city landmark anchor dots over the satellite map. */
+/** Populates designed 3D city architecture, avenue trees & localized landmark labels. */
 export function updateCityEnvironmentLayers(
   map: MapLibreMap,
   cityId: CityId,
   locale: Locale,
 ): void {
+  const scene = buildCity3dSceneGeoJson(cityId, locale);
+  const buildingsSource = map.getSource(ENV_BUILDINGS_SOURCE_ID) as GeoJSONSource | undefined;
+  const treesSource = map.getSource(ENV_TREES_SOURCE_ID) as GeoJSONSource | undefined;
   const landmarksSource = map.getSource(ENV_LANDMARKS_SOURCE_ID) as GeoJSONSource | undefined;
-  if (!landmarksSource) return;
-  landmarksSource.setData(buildCityLandmarksGeoJson(cityId, locale));
+
+  buildingsSource?.setData(scene.buildings);
+  treesSource?.setData(scene.trees);
+  landmarksSource?.setData(scene.landmarks);
 }
 
 export interface PersonPinVisualState {
@@ -465,7 +646,8 @@ export function updateRoutesAndPins(map: MapLibreMap, data: RouteAndPinUpdate): 
     if (data.pickupPin) {
       const isLiveGps = Boolean(data.pickupIsLiveGps);
       stemFeatures.push(
-        buildPin3dPolygon(data.pickupPin, 3.6, 2.2, isLiveGps ? "#0284C7" : "#09090B", "pickup"),
+        buildPin3dPolygon(data.pickupPin, 4.0, 0.85, isLiveGps ? "#38BDF8" : "#10B981", "pickup", 0),
+        buildPin3dPolygon(data.pickupPin, 1.5, 3.0, isLiveGps ? "#0284C7" : "#09090B", "pickup", 0.85),
       );
       pointFeatures.push({
         type: "Feature",
@@ -479,7 +661,10 @@ export function updateRoutesAndPins(map: MapLibreMap, data: RouteAndPinUpdate): 
     }
 
     if (data.dropoffPin) {
-      stemFeatures.push(buildPin3dPolygon(data.dropoffPin, 3.6, 2.2, "#059669", "dropoff"));
+      stemFeatures.push(
+        buildPin3dPolygon(data.dropoffPin, 4.0, 0.85, "#A7F3D0", "dropoff", 0),
+        buildPin3dPolygon(data.dropoffPin, 1.5, 3.0, "#059669", "dropoff", 0.85),
+      );
       pointFeatures.push({
         type: "Feature",
         properties: {

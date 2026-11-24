@@ -2,6 +2,10 @@ export type CityId = "adama" | "addis" | "hawassa" | "worabe";
 
 export type Locale = "en" | "am";
 
+export type MapStyleMode = "vector" | "satellite";
+
+export type VehicleStatusFilter = "all" | "on_trip" | "idle" | "alert";
+
 export type LocationSource = "real" | "simulated";
 
 export type GeoPermissionState = "idle" | "requesting" | "granted" | "denied" | "unavailable";
@@ -158,6 +162,18 @@ export interface Trip {
   remainingEtaMin: number;
   timeline: TripTimelineEntry[];
   rating?: number;
+}
+
+export interface CompletedTripSummary {
+  id: string;
+  cityId: CityId;
+  tier: Tier;
+  pickup: Place;
+  dropoff: Place;
+  fareEtb: number;
+  distanceKm: number;
+  payment: PaymentMethod;
+  completedAt: number;
 }
 
 export interface DriverJobOffer {
