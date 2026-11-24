@@ -5,10 +5,10 @@ import { useMemo } from "react";
 import { PaymentToggle } from "@/components/rider/PaymentToggle";
 import { TierRow } from "@/components/rider/TierRow";
 import { Button, IconButton } from "@/components/ui/Button";
+import { useRoadRoute } from "@/hooks/useRoadRoute";
 import { estimateNearestTierEtaMin } from "@/lib/eta";
 import { quoteAllTiers } from "@/lib/fare";
 import { formatEtb, getStrings, localizePlaceName, localizeTier } from "@/lib/i18n";
-import { computeCityRoute } from "@/lib/routing";
 import { TIER_ORDER } from "@/lib/tiers";
 import { useFleetStore } from "@/store/useFleetStore";
 
@@ -30,12 +30,10 @@ export function TierStep() {
 
   const s = getStrings(locale);
 
-  const route = useMemo(() => {
-    const destCoords = destination?.coords ?? pickup.coords;
-    return computeCityRoute(cityId, pickup.coords, destCoords);
-  }, [cityId, pickup.coords, destination]);
+  const roadRoute = useRoadRoute(cityId, pickup.coords, destination?.coords ?? pickup.coords);
+  const routeDistanceKm = roadRoute?.distanceKm ?? 0.25;
 
-  const quotes = useMemo(() => quoteAllTiers(route.distanceKm), [route.distanceKm]);
+  const quotes = useMemo(() => quoteAllTiers(routeDistanceKm), [routeDistanceKm]);
 
   const etas = useMemo(() => {
     return {
@@ -66,7 +64,7 @@ export function TierStep() {
             {destination ? localizePlaceName(destination, locale) : s.destinationLabel}
           </p>
           <p className="num text-[12px] text-muted">
-            {route.distanceKm.toFixed(1)} km · ~{activeQuote.etaMinutes} {s.min} {s.rideLabel} ·{" "}
+            {routeDistanceKm.toFixed(1)} km · ~{activeQuote.etaMinutes} {s.min} {s.rideLabel} ·{" "}
             {s.upfrontFare}
           </p>
         </div>

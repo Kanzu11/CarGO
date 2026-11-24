@@ -3,6 +3,7 @@ import { estimateTravelMinutes, lockedFare } from "@/lib/fare";
 import { bearingDeg, clamp, haversineKm, lerpLngLat, samplePolyline } from "@/lib/geo";
 import { createSeededDriverAndPlate } from "@/lib/identity";
 import { createPrng, hashSeed, pickRandom, type Prng } from "@/lib/random";
+import { fetchRoadRoute, getCachedRoadRoute } from "@/lib/roadRouting";
 import { buildAdjacency, computeCityRoute } from "@/lib/routing";
 import { TIERS, TIER_ORDER } from "@/lib/tiers";
 import { isActiveTripPhase, transitionTrip } from "@/lib/tripMachine";
@@ -646,6 +647,49 @@ export class FleetSimulator {
     return preempted;
   }
 
+  /** Resolves real OSRM street geometry asynchronously in the browser and updates active trips in-place. */
+  private hydrateTripRoute(
+    tripId: string,
+    kind: "route" | "approachRoute",
+    from: LngLat,
+    to: LngLat,
+  ): void {
+    if (typeof window === "undefined") return;
+    const expectedCity = this.cityId;
+    void fetchRoadRoute(expectedCity, from, to).then((road) => {
+      if (!road.isRealRoad || this.cityId !== expectedCity) return;
+      const entry = this.trips.get(tripId);
+      if (!entry || !isActiveTripPhase(entry.trip.phase)) return;
+
+      if (kind === "route") {
+        const fareEtb = lockedFare(entry.trip.tier, road.distanceKm);
+        const etaMinutes = estimateTravelMinutes(entry.trip.tier, road.distanceKm);
+        entry.trip = {
+          ...entry.trip,
+          route: road.coords,
+          distanceKm: road.distanceKm,
+          etaMinutes,
+          fareEtb: entry.trip.source === "rider" ? entry.trip.fareEtb : fareEtb,
+          remainingKm:
+            entry.trip.phase === "IN_PROGRESS"
+              ? Number((road.distanceKm * (1 - entry.trip.progress)).toFixed(2))
+              : entry.trip.remainingKm,
+          updatedAt: Date.now(),
+        };
+      } else {
+        entry.trip = {
+          ...entry.trip,
+          approachRoute: road.coords,
+          updatedAt: Date.now(),
+        };
+      }
+
+      if (entry.trip.source === "rider" || entry.trip.source === "driver") {
+        this.emit({ type: "trip.updated", trip: entry.trip });
+      }
+    });
+  }
+
   private bindVehicleToTrip(
     tState: InternalTripState,
     vState: InternalVehicleState,
@@ -653,7 +697,9 @@ export class FleetSimulator {
     customNote?: string,
   ): void {
     const { trip } = tState;
-    const approach = computeCityRoute(this.cityId, vState.vehicle.position, trip.pickup.coords);
+    const approach =
+      getCachedRoadRoute(vState.vehicle.position, trip.pickup.coords) ??
+      computeCityRoute(this.cityId, vState.vehicle.position, trip.pickup.coords);
     const approachTicks = clamp(Math.round(approach.distanceKm * 4), 6, 12);
 
     vState.vehicle.tripId = trip.id;
@@ -686,6 +732,7 @@ export class FleetSimulator {
     if (tState.trip.source === "rider") {
       this.emit({ type: "trip.updated", trip: tState.trip });
     }
+    this.hydrateTripRoute(trip.id, "approachRoute", vState.vehicle.position, trip.pickup.coords);
   }
 
   private createRiderTrip(
@@ -707,7 +754,9 @@ export class FleetSimulator {
     }
 
     const id = `TRP-${++this.tripSeq}`;
-    const routeResult = computeCityRoute(this.cityId, params.pickup.coords, params.dropoff.coords);
+    const routeResult =
+      getCachedRoadRoute(params.pickup.coords, params.dropoff.coords) ??
+      computeCityRoute(this.cityId, params.pickup.coords, params.dropoff.coords);
     const fareEtb = lockedFare(params.tier, routeResult.distanceKm);
     const etaMinutes = estimateTravelMinutes(params.tier, routeResult.distanceKm);
     const noteParts = [params.landmarkChip, params.landmarkNote?.trim()].filter(Boolean);
@@ -748,6 +797,7 @@ export class FleetSimulator {
     });
 
     this.emit({ type: "trip.updated", trip });
+    this.hydrateTripRoute(id, "route", params.pickup.coords, params.dropoff.coords);
     return trip;
   }
 
@@ -764,7 +814,9 @@ export class FleetSimulator {
     if (!candidate && initialPhase !== "REQUESTED") return;
 
     const id = `TRP-${++this.tripSeq}`;
-    const routeResult = computeCityRoute(this.cityId, pickup.coords, dropoff.coords);
+    const routeResult =
+      getCachedRoadRoute(pickup.coords, dropoff.coords) ??
+      computeCityRoute(this.cityId, pickup.coords, dropoff.coords);
     const fareEtb = lockedFare(tier, routeResult.distanceKm);
     const etaMinutes = estimateTravelMinutes(tier, routeResult.distanceKm);
     const payment = pickRandom(PAYMENT_METHODS, this.rng);
@@ -801,6 +853,7 @@ export class FleetSimulator {
     };
 
     this.trips.set(id, tState);
+    this.hydrateTripRoute(id, "route", pickup.coords, dropoff.coords);
 
     if (initialPhase !== "REQUESTED" && candidate) {
       tState.trip = transitionTrip(tState.trip, "SEARCHING", now);
@@ -893,8 +946,12 @@ export class FleetSimulator {
     const dropoffCandidates = city.landmarks.filter((l) => l.id !== pickup.id);
     const dropoff = pickRandom(dropoffCandidates, this.rng);
 
-    const approach = computeCityRoute(this.cityId, playerState.vehicle.position, pickup.coords);
-    const tripRoute = computeCityRoute(this.cityId, pickup.coords, dropoff.coords);
+    const approach =
+      getCachedRoadRoute(playerState.vehicle.position, pickup.coords) ??
+      computeCityRoute(this.cityId, playerState.vehicle.position, pickup.coords);
+    const tripRoute =
+      getCachedRoadRoute(pickup.coords, dropoff.coords) ??
+      computeCityRoute(this.cityId, pickup.coords, dropoff.coords);
     const tier = playerState.vehicle.tier;
     const payoutEtb = lockedFare(tier, tripRoute.distanceKm);
     const payment: PaymentMethod = this.offerSeq % 2 === 1 ? "telebirr" : "cash";
@@ -969,6 +1026,8 @@ export class FleetSimulator {
     });
 
     this.emit({ type: "trip.updated", trip });
+    this.hydrateTripRoute(trip.id, "approachRoute", playerState.vehicle.position, offer.pickup.coords);
+    this.hydrateTripRoute(trip.id, "route", offer.pickup.coords, offer.dropoff.coords);
   }
 
   /**
@@ -1092,11 +1151,13 @@ export class FleetSimulator {
       }
     }
 
-    const approach = computeCityRoute(
-      this.cityId,
-      replacement.vehicle.position,
-      tState.trip.pickup.coords,
-    );
+    const approach =
+      getCachedRoadRoute(replacement.vehicle.position, tState.trip.pickup.coords) ??
+      computeCityRoute(
+        this.cityId,
+        replacement.vehicle.position,
+        tState.trip.pickup.coords,
+      );
     replacement.vehicle.tripId = tState.trip.id;
     replacement.vehicle.status =
       tState.trip.phase === "IN_PROGRESS" ? "on_trip" : "enroute_pickup";
@@ -1113,6 +1174,12 @@ export class FleetSimulator {
     };
 
     this.emit({ type: "trip.updated", trip: tState.trip });
+    this.hydrateTripRoute(
+      tState.trip.id,
+      "approachRoute",
+      replacement.vehicle.position,
+      tState.trip.pickup.coords,
+    );
   }
 
   private addOpsLandmarkNote(tripId: string, note: string, now: number): void {

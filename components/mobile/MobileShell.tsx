@@ -7,9 +7,9 @@ import { TopBar } from "@/components/mobile/TopBar";
 import { RiderSheet } from "@/components/rider/RiderSheet";
 import { HydrationGate } from "@/components/system/HydrationGate";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useRoadRoute } from "@/hooks/useRoadRoute";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { getStrings } from "@/lib/i18n";
-import { computeCityRoute } from "@/lib/routing";
 import { isActiveTripPhase } from "@/lib/tripMachine";
 import { useFleetStore } from "@/store/useFleetStore";
 import type { LngLat } from "@/types/fleet";
@@ -60,19 +60,24 @@ export function MobileShell() {
     return pickingTarget === "pickup" ? setPickupFromCoords : setDestinationFromCoords;
   }, [mode, riderStep, pickingTarget, setPickupFromCoords, setDestinationFromCoords]);
 
+  const riderRoadRoute = useRoadRoute(
+    cityId,
+    mode === "rider" && destination ? pickup.coords : null,
+    mode === "rider" && destination ? destination.coords : null,
+  );
+
   const previewRoute = useMemo(() => {
     if (mode === "rider") {
       if (riderStep === "trip" && activeRiderTrip && isActiveTripPhase(activeRiderTrip.phase)) {
         return undefined;
       }
-      if (!destination) return undefined;
-      return computeCityRoute(cityId, pickup.coords, destination.coords).coords;
+      return riderRoadRoute?.coords;
     }
     if (driverOffer && !activeDriverTrip) {
       return driverOffer.route;
     }
     return undefined;
-  }, [mode, riderStep, activeRiderTrip, destination, cityId, pickup.coords, driverOffer, activeDriverTrip]);
+  }, [mode, riderStep, activeRiderTrip, riderRoadRoute, driverOffer, activeDriverTrip]);
 
   const followVehicleId = useMemo(() => {
     if (mode === "rider") {

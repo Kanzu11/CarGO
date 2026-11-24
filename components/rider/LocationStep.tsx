@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { DestinationPresets } from "@/components/rider/DestinationPresets";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { useRoadRoute } from "@/hooks/useRoadRoute";
 import { cn } from "@/lib/cn";
 import { lockedFare } from "@/lib/fare";
 import {
@@ -12,7 +13,6 @@ import {
   getStrings,
   localizePlaceName,
 } from "@/lib/i18n";
-import { computeCityRoute } from "@/lib/routing";
 import { useFleetStore } from "@/store/useFleetStore";
 
 export interface LocationStepProps {
@@ -41,14 +41,15 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
 
   const s = getStrings(locale);
 
+  const roadRoute = useRoadRoute(cityId, destination ? pickup.coords : null, destination?.coords ?? null);
+
   const routeSummary = useMemo(() => {
-    if (!destination) return null;
-    const res = computeCityRoute(cityId, pickup.coords, destination.coords);
+    if (!destination || !roadRoute) return null;
     return {
-      distanceKm: res.distanceKm,
-      bajajEtb: lockedFare("bajaj", res.distanceKm),
+      distanceKm: roadRoute.distanceKm,
+      bajajEtb: lockedFare("bajaj", roadRoute.distanceKm),
     };
-  }, [cityId, pickup.coords, destination]);
+  }, [destination, roadRoute]);
 
   const handleSelectGps = () => {
     if (userGeo) {

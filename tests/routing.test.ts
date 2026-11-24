@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CITIES, CITY_ORDER } from "@/lib/cities";
+import { buildOsrmRouteUrl, fetchRoadRoute } from "@/lib/roadRouting";
 import { buildAdjacency, computeCityRoute, findShortestNodePath } from "@/lib/routing";
 
 describe("Ethiopian city road graphs & A* routing", () => {
@@ -39,4 +40,17 @@ describe("Ethiopian city road graphs & A* routing", () => {
       }
     });
   }
+
+  it("formats OSRM driving route URLs accurately and falls back cleanly in Node/offline", async () => {
+    const a = CITIES.addis.landmarks[0]!.coords;
+    const b = CITIES.addis.landmarks[1]!.coords;
+    const url = buildOsrmRouteUrl(a, b);
+    expect(url).toContain("router.project-osrm.org/route/v1/driving/");
+    expect(url).toContain("overview=full&geometries=geojson");
+
+    const res = await fetchRoadRoute("addis", a, b);
+    expect(res.coords.length).toBeGreaterThanOrEqual(2);
+    expect(res.distanceKm).toBeGreaterThan(0.2);
+    expect(res.isRealRoad).toBe(false);
+  });
 });
