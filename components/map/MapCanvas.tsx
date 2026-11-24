@@ -329,7 +329,8 @@ export default function MapCanvas({
     perfTier,
   });
 
-  // Sync 2D/3D mode & perfTier updates dynamically
+  // Sync 2D/3D mode & perfTier updates dynamically without hijacking city flyTo animations
+  const prev3dModeRef = useRef(map3dEnabled);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
@@ -343,7 +344,11 @@ export default function MapCanvas({
     applyFlatSkyAndLight(map, map3dEnabled);
     applyTerrainAndHillshade(map, map3dEnabled && perfTier === "full" && !terrainBlocked);
     syncFleetLayerMode(map, map3dEnabled);
-    applyCameraMode(map, map3dEnabled, preset.pitch, city.bearing);
+
+    if (prev3dModeRef.current !== map3dEnabled) {
+      prev3dModeRef.current = map3dEnabled;
+      applyCameraMode(map, map3dEnabled, preset.pitch, city.bearing);
+    }
   }, [mapReady, map3dEnabled, perfTier, terrainBlocked, cityId, variant]);
 
   // Sync basemap labels to active English / Amharic locale
@@ -417,7 +422,8 @@ export default function MapCanvas({
     });
   }, [cityId, mapReady, map3dEnabled, variant, locationSource, userGeo]);
 
-  // Sync MapLibre padding so optical center respects sheets/drawers
+  // Sync MapLibre padding and re-center initial viewport cleanly inside un-obscured bounds
+  const initialPaddingAppliedRef = useRef(false);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
@@ -427,7 +433,11 @@ export default function MapCanvas({
       bottom: padding?.bottom ?? 0,
       left: padding?.left ?? 0,
     });
-  }, [mapReady, padding?.top, padding?.right, padding?.bottom, padding?.left]);
+    if (!initialPaddingAppliedRef.current) {
+      initialPaddingAppliedRef.current = true;
+      map.jumpTo({ center: CITIES[cityId].center });
+    }
+  }, [mapReady, cityId, padding?.top, padding?.right, padding?.bottom, padding?.left]);
 
   const lastFitKeyRef = useRef<string | undefined>(undefined);
   const fitDataRef = useRef({ fitBoundsCoords, padding, map3dEnabled });

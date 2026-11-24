@@ -114,13 +114,15 @@ export function apply3dBuildingsLayer(map: MapLibreMap, visible = true): void {
           ["linear"],
           ["coalesce", ["get", "render_height"], ["get", "height"], 11],
           0,
-          "#D6D3D1",
-          12,
-          "#E7E5E4",
-          28,
+          "#E7E2DA",
+          10,
+          "#DDD6CC",
+          22,
           "#CBD5E1",
-          55,
+          42,
           "#94A3B8",
+          70,
+          "#64748B",
         ],
         "fill-extrusion-height": [
           "interpolate",
@@ -137,7 +139,7 @@ export function apply3dBuildingsLayer(map: MapLibreMap, visible = true): void {
           ["get", "min_height"],
           0,
         ],
-        "fill-extrusion-opacity": 0.88,
+        "fill-extrusion-opacity": 0.94,
         "fill-extrusion-vertical-gradient": true,
       },
     },
@@ -219,9 +221,9 @@ export function applyFlatSkyAndLight(map: MapLibreMap, is3d: boolean): void {
     });
     map.setLight({
       anchor: "map",
-      intensity: is3d ? 0.55 : 0.16,
-      color: "#FFFBEB",
-      position: [1.4, 210, 38],
+      intensity: is3d ? 0.65 : 0.16,
+      color: "#FFF7ED",
+      position: [1.5, 195, 34],
     });
   } catch {
     // Ignore on styles or contexts that do not support sky/light mutations

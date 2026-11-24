@@ -5,6 +5,8 @@ import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import {
   FLEET_3D_SOURCE_ID,
   FLEET_POINTS_SOURCE_ID,
+  PINS_PULSE_LAYER_ID,
+  USER_PULSE_LAYER_ID,
 } from "@/components/map/mapLayers";
 import {
   buildFleet3dFeatureCollection,
@@ -48,6 +50,7 @@ export function useAnimatedFleetLayer({
 
     let rafId = 0;
     let lastTs = performance.now();
+    let lastPulseTs = 0;
     let slowAccumMs = 0;
     let downgraded = false;
 
@@ -64,6 +67,23 @@ export function useAnimatedFleetLayer({
           }
         } else {
           slowAccumMs = Math.max(0, slowAccumMs - frameDelta * 0.5);
+        }
+
+        // Smooth radar pulse ring under Person GPS & Pickup/Dropoff pins (~30fps)
+        if (ts - lastPulseTs >= 32) {
+          lastPulseTs = ts;
+          const phase = (ts % 1800) / 1800;
+          const easeOut = 1 - (1 - phase) * (1 - phase);
+          const radius = 7 + easeOut * 22;
+          const fillOp = (1 - phase) * 0.4;
+          const strokeOp = (1 - phase) * 0.88;
+          for (const pulseLayer of [PINS_PULSE_LAYER_ID, USER_PULSE_LAYER_ID]) {
+            if (map.getLayer(pulseLayer)) {
+              map.setPaintProperty(pulseLayer, "circle-radius", radius);
+              map.setPaintProperty(pulseLayer, "circle-opacity", fillOp);
+              map.setPaintProperty(pulseLayer, "circle-stroke-opacity", strokeOp);
+            }
+          }
         }
 
         const state = useFleetStore.getState();

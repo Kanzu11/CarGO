@@ -29,7 +29,7 @@ interface TowerHubSpec {
   towerColor: string;
 }
 
-const ARCH_COLORS = ["#E2E8F0", "#CBD5E1", "#D6D3D1", "#94A3B8"] as const;
+const ARCH_COLORS = ["#E7E2DA", "#CBD5E1", "#D6D3D1", "#94A3B8"] as const;
 const TRUNK_COLOR = "#5C4033";
 const LOWER_CROWN_COLORS = ["#14532D", "#166534"] as const;
 const MID_CROWN_COLORS = ["#15803D", "#16A34A"] as const;
@@ -39,23 +39,23 @@ const TOP_CROWN_COLOR = "#22C55E";
 const ADDIS_TOWER_HUBS: ReadonlyArray<TowerHubSpec> = [
   // Meskel Square / CBE Financial District / Finfine
   { center: [38.7598, 9.0121], bearing: -14, widthM: 34, depthM: 28, podiumH: 14, towerH: 64, podiumColor: "#D6D3D1", towerColor: "#94A3B8" },
-  { center: [38.7634, 9.0094], bearing: 18, widthM: 30, depthM: 24, podiumH: 12, towerH: 48, podiumColor: "#E7E5E4", towerColor: "#CBD5E1" },
+  { center: [38.7634, 9.0094], bearing: 18, widthM: 30, depthM: 24, podiumH: 12, towerH: 48, podiumColor: "#E7E2DA", towerColor: "#CBD5E1" },
   { center: [38.7628, 9.0126], bearing: 8, widthM: 26, depthM: 22, podiumH: 10, towerH: 38, podiumColor: "#D6D3D1", towerColor: "#E2E8F0" },
   { center: [38.7582, 9.0114], bearing: -22, widthM: 28, depthM: 24, podiumH: 12, towerH: 42, podiumColor: "#CBD5E1", towerColor: "#94A3B8" },
   { center: [38.7646, 9.0108], bearing: -8, widthM: 24, depthM: 20, podiumH: 11, towerH: 40, podiumColor: "#E2E8F0", towerColor: "#94A3B8" },
   // Kazanchis ECA & Radisson Commercial Cluster
   { center: [38.7686, 9.0169], bearing: 12, widthM: 36, depthM: 26, podiumH: 12, towerH: 44, podiumColor: "#E2E8F0", towerColor: "#CBD5E1" },
   { center: [38.7712, 9.0149], bearing: -10, widthM: 28, depthM: 22, podiumH: 10, towerH: 36, podiumColor: "#D6D3D1", towerColor: "#94A3B8" },
-  { center: [38.7676, 9.0156], bearing: 4, widthM: 24, depthM: 20, podiumH: 10, towerH: 32, podiumColor: "#E7E5E4", towerColor: "#CBD5E1" },
+  { center: [38.7676, 9.0156], bearing: 4, widthM: 24, depthM: 20, podiumH: 10, towerH: 32, podiumColor: "#E7E2DA", towerColor: "#CBD5E1" },
   { center: [38.7726, 9.0164], bearing: 15, widthM: 26, depthM: 22, podiumH: 11, towerH: 38, podiumColor: "#CBD5E1", towerColor: "#94A3B8" },
   // Olympia / Dembel / Africa Avenue High-Rises
   { center: [38.7672, 9.0038], bearing: -25, widthM: 32, depthM: 24, podiumH: 12, towerH: 46, podiumColor: "#CBD5E1", towerColor: "#94A3B8" },
   { center: [38.7704, 9.0018], bearing: 14, widthM: 28, depthM: 22, podiumH: 10, towerH: 34, podiumColor: "#E2E8F0", towerColor: "#D6D3D1" },
   { center: [38.7746, 9.0014], bearing: -12, widthM: 28, depthM: 22, podiumH: 11, towerH: 36, podiumColor: "#D6D3D1", towerColor: "#CBD5E1" },
   { center: [38.7775, 9.0011], bearing: -18, widthM: 30, depthM: 24, podiumH: 12, towerH: 40, podiumColor: "#D6D3D1", towerColor: "#94A3B8" },
-  { center: [38.7815, 8.9994], bearing: 10, widthM: 26, depthM: 20, podiumH: 10, towerH: 35, podiumColor: "#E7E5E4", towerColor: "#94A3B8" },
+  { center: [38.7815, 8.9994], bearing: 10, widthM: 26, depthM: 20, podiumH: 10, towerH: 35, podiumColor: "#E7E2DA", towerColor: "#94A3B8" },
   // Bole Medhanialem Commercial & Hospitality Strip
-  { center: [38.7881, 8.9994], bearing: 20, widthM: 32, depthM: 24, podiumH: 12, towerH: 42, podiumColor: "#E7E5E4", towerColor: "#CBD5E1" },
+  { center: [38.7881, 8.9994], bearing: 20, widthM: 32, depthM: 24, podiumH: 12, towerH: 42, podiumColor: "#E7E2DA", towerColor: "#CBD5E1" },
   { center: [38.7908, 8.9968], bearing: -15, widthM: 28, depthM: 22, podiumH: 10, towerH: 34, podiumColor: "#CBD5E1", towerColor: "#94A3B8" },
   { center: [38.7875, 8.9964], bearing: 6, widthM: 26, depthM: 20, podiumH: 9, towerH: 28, podiumColor: "#E2E8F0", towerColor: "#D6D3D1" },
   { center: [38.7924, 8.9988], bearing: -14, widthM: 28, depthM: 22, podiumH: 10, towerH: 32, podiumColor: "#D6D3D1", towerColor: "#CBD5E1" },
@@ -63,10 +63,10 @@ const ADDIS_TOWER_HUBS: ReadonlyArray<TowerHubSpec> = [
   { center: [38.7446, 9.0114], bearing: -12, widthM: 34, depthM: 26, podiumH: 14, towerH: 52, podiumColor: "#D6D3D1", towerColor: "#94A3B8" },
   { center: [38.7474, 9.0091], bearing: 16, widthM: 28, depthM: 22, podiumH: 10, towerH: 36, podiumColor: "#E2E8F0", towerColor: "#CBD5E1" },
   { center: [38.7428, 9.0092], bearing: 8, widthM: 26, depthM: 22, podiumH: 11, towerH: 40, podiumColor: "#CBD5E1", towerColor: "#94A3B8" },
-  { center: [38.7398, 8.9956], bearing: -8, widthM: 30, depthM: 24, podiumH: 10, towerH: 32, podiumColor: "#E7E5E4", towerColor: "#94A3B8" },
+  { center: [38.7398, 8.9956], bearing: -8, widthM: 30, depthM: 24, podiumH: 10, towerH: 32, podiumColor: "#E7E2DA", towerColor: "#94A3B8" },
   // Piassa, Arat Kilo, Urael, Hayahulet, Megenagna & Bole Airport Terminal
   { center: [38.7512, 9.0329], bearing: 14, widthM: 30, depthM: 24, podiumH: 11, towerH: 32, podiumColor: "#D6D3D1", towerColor: "#E2E8F0" },
-  { center: [38.7622, 9.0321], bearing: -6, widthM: 32, depthM: 24, podiumH: 12, towerH: 34, podiumColor: "#E7E5E4", towerColor: "#CBD5E1" },
+  { center: [38.7622, 9.0321], bearing: -6, widthM: 32, depthM: 24, podiumH: 12, towerH: 34, podiumColor: "#E7E2DA", towerColor: "#CBD5E1" },
   { center: [38.7774, 9.0124], bearing: -10, widthM: 28, depthM: 22, podiumH: 10, towerH: 34, podiumColor: "#D6D3D1", towerColor: "#94A3B8" },
   { center: [38.7866, 9.0135], bearing: 22, widthM: 28, depthM: 22, podiumH: 10, towerH: 36, podiumColor: "#CBD5E1", towerColor: "#94A3B8" },
   { center: [38.8002, 9.0194], bearing: -16, widthM: 34, depthM: 26, podiumH: 12, towerH: 40, podiumColor: "#D6D3D1", towerColor: "#94A3B8" },
@@ -75,13 +75,32 @@ const ADDIS_TOWER_HUBS: ReadonlyArray<TowerHubSpec> = [
 
 // Curated Addis Ababa parks & green compounds
 const ADDIS_PARK_ZONES: ReadonlyArray<ParkZoneSpec> = [
-  { center: [38.7615, 9.0215], radiusM: 92, count: 16 }, // Friendship / Sheger Park
-  { center: [38.7582, 9.0092], radiusM: 76, count: 14 }, // Ghion / Meskel Park
-  { center: [38.7682, 9.0145], radiusM: 64, count: 10 }, // Kazanchis ECA green compound
-  { center: [38.7745, 8.9985], radiusM: 68, count: 10 }, // Olympia / Peacock corridor
-  { center: [38.7882, 8.9992], radiusM: 56, count: 8 },  // Bole Medhanialem green plaza
-  { center: [38.7565, 9.0285], radiusM: 70, count: 12 }, // Arat Kilo / Piassa green grounds
-  { center: [38.7405, 8.9985], radiusM: 60, count: 8 },  // Sarbet green compound
+  { center: [38.7615, 9.0215], radiusM: 92, count: 16 },
+  { center: [38.7582, 9.0092], radiusM: 76, count: 14 },
+  { center: [38.7682, 9.0145], radiusM: 64, count: 10 },
+  { center: [38.7745, 8.9985], radiusM: 68, count: 10 },
+  { center: [38.7882, 8.9992], radiusM: 56, count: 8 },
+  { center: [38.7565, 9.0285], radiusM: 70, count: 12 },
+  { center: [38.7405, 8.9985], radiusM: 60, count: 8 },
+];
+
+// Curated Worabe town civic, commercial & university 3D blocks along the highway spine
+const WORABE_TOWER_HUBS: ReadonlyArray<TowerHubSpec> = [
+  { center: [38.1864, 7.8529], bearing: -18, widthM: 28, depthM: 22, podiumH: 10, towerH: 28, podiumColor: "#E7E2DA", towerColor: "#94A3B8" },
+  { center: [38.1879, 7.8518], bearing: 14, widthM: 26, depthM: 20, podiumH: 9, towerH: 24, podiumColor: "#D6D3D1", towerColor: "#CBD5E1" },
+  { center: [38.1856, 7.8495], bearing: -12, widthM: 30, depthM: 22, podiumH: 10, towerH: 26, podiumColor: "#E2E8F0", towerColor: "#94A3B8" },
+  { center: [38.1845, 7.8446], bearing: -20, widthM: 28, depthM: 22, podiumH: 10, towerH: 30, podiumColor: "#E7E2DA", towerColor: "#64748B" },
+  { center: [38.1818, 7.8364], bearing: 26, widthM: 32, depthM: 24, podiumH: 11, towerH: 28, podiumColor: "#D6D3D1", towerColor: "#94A3B8" },
+  { center: [38.1831, 7.8351], bearing: -15, widthM: 24, depthM: 20, podiumH: 8, towerH: 22, podiumColor: "#E2E8F0", towerColor: "#CBD5E1" },
+  { center: [38.1778, 7.8342], bearing: 22, widthM: 34, depthM: 24, podiumH: 10, towerH: 24, podiumColor: "#E7E2DA", towerColor: "#94A3B8" },
+  { center: [38.1899, 7.8562], bearing: -10, widthM: 36, depthM: 26, podiumH: 11, towerH: 26, podiumColor: "#D6D3D1", towerColor: "#CBD5E1" },
+];
+
+const WORABE_PARK_ZONES: ReadonlyArray<ParkZoneSpec> = [
+  { center: [38.1886, 7.8554], radiusM: 54, count: 8 },
+  { center: [38.1858, 7.8482], radiusM: 48, count: 6 },
+  { center: [38.1812, 7.8375], radiusM: 50, count: 8 },
+  { center: [38.1782, 7.8358], radiusM: 46, count: 6 },
 ];
 
 const sceneCache = new Map<
@@ -123,8 +142,9 @@ function buildCirclePolygon(
 }
 
 /**
- * 5-part 3D architectural complex: street podium, flanking wing, lower shaft,
- * setback upper tower, and rooftop penthouse/crown.
+ * 7-part architectural 3D complex: stone courtyard plaza, street podium,
+ * dark-glass lobby belt, flanking wing, main tower shaft, setback glass tower,
+ * and rooftop crown penthouse.
  */
 function appendArchitecturalComplex(
   features: Feature<Polygon>[],
@@ -141,7 +161,15 @@ function appendArchitecturalComplex(
   features.push(
     {
       type: "Feature",
-      properties: { base: 0, height: spec.podiumH, color: spec.podiumColor },
+      properties: { base: 0, height: 1.2, color: "#D6D3D1" },
+      geometry: {
+        type: "Polygon",
+        coordinates: [buildRectPolygon(spec.center, spec.widthM * 1.18, spec.depthM * 1.18, spec.bearing)],
+      },
+    },
+    {
+      type: "Feature",
+      properties: { base: 1.2, height: spec.podiumH, color: spec.podiumColor },
       geometry: {
         type: "Polygon",
         coordinates: [buildRectPolygon(spec.center, spec.widthM, spec.depthM, spec.bearing)],
@@ -149,7 +177,17 @@ function appendArchitecturalComplex(
     },
     {
       type: "Feature",
-      properties: { base: 0, height: Math.round(spec.podiumH * 0.8), color: "#E7E5E4" },
+      properties: { base: spec.podiumH, height: spec.podiumH + 2.2, color: "#334155" },
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          buildRectPolygon(spec.center, spec.widthM * 0.84, spec.depthM * 0.84, spec.bearing),
+        ],
+      },
+    },
+    {
+      type: "Feature",
+      properties: { base: 1.2, height: Math.round(spec.podiumH * 0.82), color: "#E7E2DA" },
       geometry: {
         type: "Polygon",
         coordinates: [
@@ -159,7 +197,7 @@ function appendArchitecturalComplex(
     },
     {
       type: "Feature",
-      properties: { base: spec.podiumH, height: midH, color: spec.towerColor },
+      properties: { base: spec.podiumH + 2.2, height: midH, color: spec.towerColor },
       geometry: {
         type: "Polygon",
         coordinates: [
@@ -169,7 +207,7 @@ function appendArchitecturalComplex(
     },
     {
       type: "Feature",
-      properties: { base: midH, height: spec.towerH, color: spec.podiumColor },
+      properties: { base: midH, height: spec.towerH, color: "#94A3B8" },
       geometry: {
         type: "Polygon",
         coordinates: [
@@ -179,11 +217,11 @@ function appendArchitecturalComplex(
     },
     {
       type: "Feature",
-      properties: { base: spec.towerH, height: spec.towerH + 5, color: "#475569" },
+      properties: { base: spec.towerH, height: spec.towerH + 5, color: "#334155" },
       geometry: {
         type: "Polygon",
         coordinates: [
-          buildRectPolygon(spec.center, spec.widthM * 0.26, spec.depthM * 0.26, spec.bearing),
+          buildRectPolygon(spec.center, spec.widthM * 0.24, spec.depthM * 0.24, spec.bearing),
         ],
       },
     },
@@ -297,6 +335,18 @@ function buildStatic3dScene(cityId: CityId): {
         appendSculpted3dTree(trees, pos, randomBetween(0.95, 1.35, rng), rng);
       }
     }
+  } else if (cityId === "worabe") {
+    for (const tower of WORABE_TOWER_HUBS) {
+      appendArchitecturalComplex(buildings, tower);
+    }
+    for (const park of WORABE_PARK_ZONES) {
+      for (let i = 0; i < park.count; i++) {
+        const dist = randomBetween(8, park.radiusM, rng);
+        const angle = (i / park.count) * 360 + randomBetween(-12, 12, rng);
+        const pos = localMetersToLngLat(park.center, dist, 0, angle);
+        appendSculpted3dTree(trees, pos, randomBetween(0.9, 1.25, rng), rng);
+      }
+    }
   } else {
     for (let idx = 0; idx < city.landmarks.length; idx++) {
       const landmark = city.landmarks[idx]!;
@@ -334,7 +384,6 @@ function buildStatic3dScene(cityId: CityId): {
     }
   }
 
-  // Avenue trees neatly offset 26m along key boulevards clear of road & intersection lanes
   let avenueTrees = 0;
   for (const [fromId, toId] of city.graph.edges) {
     if (avenueTrees >= 36) break;
@@ -390,8 +439,8 @@ export function buildCityLandmarksGeoJson(
 }
 
 /**
- * Builds cohesive 5-part 3D buildings, 3D landmark beacons, sculpted multi-tier
- * park/avenue trees, and localized landmark anchors layered over the satellite map.
+ * Builds cohesive 7-part 3D architectural buildings, 3D landmark beacons,
+ * sculpted multi-tier park/avenue trees, and localized landmark anchors.
  */
 export function buildCity3dSceneGeoJson(
   cityId: CityId,

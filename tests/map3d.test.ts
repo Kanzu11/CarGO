@@ -7,6 +7,11 @@ import {
 } from "@/components/map/map3d";
 import { buildCity3dSceneGeoJson } from "@/components/map/mapTrees";
 import {
+  PIN_DROPOFF_SPRITE_ID,
+  PIN_PERSON_SPRITE_ID,
+  PIN_PICKUP_SPRITE_ID,
+} from "@/components/map/pinSprites";
+import {
   buildFleet3dFeatureCollection,
   buildFleetPointFeatureCollection,
   buildPin3dFeatures,
@@ -100,6 +105,20 @@ describe("3D map vehicle sprites, pins & geometry", () => {
     expect(addisScene.buildings.features.length).toBeGreaterThan(30);
     expect(addisScene.trees.features.length).toBeGreaterThan(80);
     expect(addisScene.landmarks.features).toHaveLength(CITIES.addis.landmarks.length);
+
+    // Worabe centers cleanly onto the real town highway spine & K'ali K'esa Bota corridor
+    const [wLng, wLat] = CITIES.worabe.center;
+    expect(wLng).toBeGreaterThanOrEqual(38.18);
+    expect(wLng).toBeLessThanOrEqual(38.19);
+    expect(wLat).toBeGreaterThanOrEqual(7.84);
+    expect(wLat).toBeLessThanOrEqual(7.854);
+
+    const worabeScene = buildCity3dSceneGeoJson("worabe", "en");
+    expect(worabeScene.buildings.features.length).toBeGreaterThan(50);
+
+    expect(PIN_PERSON_SPRITE_ID).toBe("cargo-pin-person");
+    expect(PIN_PICKUP_SPRITE_ID).toBe("cargo-pin-pickup");
+    expect(PIN_DROPOFF_SPRITE_ID).toBe("cargo-pin-dropoff");
 
     for (const cityId of CITY_ORDER) {
       const scene = buildCity3dSceneGeoJson(cityId, "en");

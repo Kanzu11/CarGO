@@ -3,7 +3,13 @@ import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { findFirstSymbolLayerId } from "@/components/map/map3d";
 import { buildCity3dSceneGeoJson } from "@/components/map/mapTrees";
 import {
-  buildPin3dFeatures,
+  PIN_DROPOFF_SPRITE_ID,
+  PIN_PERSON_SPRITE_ID,
+  PIN_PICKUP_SPRITE_ID,
+  registerPinSprites,
+} from "@/components/map/pinSprites";
+import {
+  buildPin3dPolygon,
   localMetersToLngLat,
 } from "@/components/map/vehicleModels";
 import { registerVehicleSprites } from "@/components/map/vehicleSprites";
@@ -31,7 +37,9 @@ export const FLEET_SPRITES_LAYER_ID = "cargo-fleet-sprites-layer";
 export const FLEET_3D_LAYER_ID = "cargo-fleet-3d-layer";
 export const USER_ACCURACY_LAYER_ID = "cargo-user-accuracy-layer";
 export const USER_ACCURACY_BORDER_LAYER_ID = "cargo-user-accuracy-border";
+export const USER_PULSE_LAYER_ID = "cargo-user-pulse";
 export const USER_DOT_LAYER_ID = "cargo-user-dot-layer";
+export const PINS_PULSE_LAYER_ID = "cargo-pins-pulse";
 export const PINS_3D_STEM_LAYER_ID = "cargo-pins-3d-stems";
 export const PINS_CAP_LAYER_ID = "cargo-pins-caps";
 
@@ -54,6 +62,7 @@ function ensureGeoJsonSource(map: MapLibreMap, id: string): void {
  */
 export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
   registerVehicleSprites(map);
+  registerPinSprites(map);
 
   ensureGeoJsonSource(map, ENV_BUILDINGS_SOURCE_ID);
   ensureGeoJsonSource(map, ENV_TREES_SOURCE_ID);
@@ -259,6 +268,22 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
     });
   }
 
+  if (!map.getLayer(PINS_PULSE_LAYER_ID)) {
+    map.addLayer({
+      id: PINS_PULSE_LAYER_ID,
+      type: "circle",
+      source: PINS_POINTS_SOURCE_ID,
+      paint: {
+        "circle-radius": 14,
+        "circle-color": ["get", "color"],
+        "circle-opacity": 0.25,
+        "circle-stroke-color": "#FFFFFF",
+        "circle-stroke-width": 1.8,
+        "circle-stroke-opacity": 0.7,
+      },
+    });
+  }
+
   if (!map.getLayer(PINS_3D_STEM_LAYER_ID)) {
     map.addLayer({
       id: PINS_3D_STEM_LAYER_ID,
@@ -272,7 +297,7 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
         "fill-extrusion-height": ["get", "height"],
         "fill-extrusion-base": ["coalesce", ["get", "base"], 0],
         "fill-extrusion-vertical-gradient": true,
-        "fill-extrusion-opacity": 0.96,
+        "fill-extrusion-opacity": 0.92,
       },
     });
   }
@@ -280,13 +305,24 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
   if (!map.getLayer(PINS_CAP_LAYER_ID)) {
     map.addLayer({
       id: PINS_CAP_LAYER_ID,
-      type: "circle",
+      type: "symbol",
       source: PINS_POINTS_SOURCE_ID,
-      paint: {
-        "circle-radius": 6.5,
-        "circle-color": ["get", "color"],
-        "circle-stroke-width": 2.5,
-        "circle-stroke-color": "#FFFFFF",
+      layout: {
+        "icon-image": ["get", "spriteId"],
+        "icon-anchor": "bottom",
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          11,
+          0.68,
+          14,
+          0.9,
+          17.2,
+          1.12,
+        ],
       },
     });
   }
@@ -297,8 +333,8 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
       type: "fill",
       source: USER_ACCURACY_SOURCE_ID,
       paint: {
-        "fill-color": "#047857",
-        "fill-opacity": 0.12,
+        "fill-color": "#0284C7",
+        "fill-opacity": 0.14,
       },
     });
   }
@@ -309,9 +345,25 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
       type: "line",
       source: USER_ACCURACY_SOURCE_ID,
       paint: {
-        "line-color": "#047857",
-        "line-width": 1.2,
-        "line-opacity": 0.45,
+        "line-color": "#38BDF8",
+        "line-width": 1.4,
+        "line-opacity": 0.6,
+      },
+    });
+  }
+
+  if (!map.getLayer(USER_PULSE_LAYER_ID)) {
+    map.addLayer({
+      id: USER_PULSE_LAYER_ID,
+      type: "circle",
+      source: USER_DOT_SOURCE_ID,
+      paint: {
+        "circle-radius": 15,
+        "circle-color": "#0284C7",
+        "circle-opacity": 0.28,
+        "circle-stroke-color": "#FFFFFF",
+        "circle-stroke-width": 2,
+        "circle-stroke-opacity": 0.8,
       },
     });
   }
@@ -319,13 +371,24 @@ export function ensureCargoLayers(map: MapLibreMap, is3d: boolean): void {
   if (!map.getLayer(USER_DOT_LAYER_ID)) {
     map.addLayer({
       id: USER_DOT_LAYER_ID,
-      type: "circle",
+      type: "symbol",
       source: USER_DOT_SOURCE_ID,
-      paint: {
-        "circle-radius": 6.5,
-        "circle-color": "#047857",
-        "circle-stroke-width": 3,
-        "circle-stroke-color": "#FFFFFF",
+      layout: {
+        "icon-image": PIN_PERSON_SPRITE_ID,
+        "icon-anchor": "bottom",
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          11,
+          0.74,
+          14,
+          0.95,
+          17.2,
+          1.15,
+        ],
       },
     });
   }
@@ -422,19 +485,27 @@ export function updateRoutesAndPins(map: MapLibreMap, data: RouteAndPinUpdate): 
     const pointFeatures: Feature<Point>[] = [];
 
     if (data.pickupPin) {
-      stemFeatures.push(...buildPin3dFeatures(data.pickupPin, "#09090B", "#FFFFFF", "pickup"));
+      stemFeatures.push(buildPin3dPolygon(data.pickupPin, 3.6, 2.2, "#09090B", "pickup"));
       pointFeatures.push({
         type: "Feature",
-        properties: { kind: "pickup", color: "#09090B" },
+        properties: {
+          kind: "pickup",
+          color: "#10B981",
+          spriteId: PIN_PICKUP_SPRITE_ID,
+        },
         geometry: { type: "Point", coordinates: data.pickupPin },
       });
     }
 
     if (data.dropoffPin) {
-      stemFeatures.push(...buildPin3dFeatures(data.dropoffPin, "#10B981", "#064E3B", "dropoff"));
+      stemFeatures.push(buildPin3dPolygon(data.dropoffPin, 3.6, 2.2, "#059669", "dropoff"));
       pointFeatures.push({
         type: "Feature",
-        properties: { kind: "dropoff", color: "#10B981" },
+        properties: {
+          kind: "dropoff",
+          color: "#10B981",
+          spriteId: PIN_DROPOFF_SPRITE_ID,
+        },
         geometry: { type: "Point", coordinates: data.dropoffPin },
       });
     }
