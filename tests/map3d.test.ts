@@ -3,6 +3,7 @@ import {
   CAMERA_PRESETS,
   ESRI_WORLD_IMAGERY_TILES,
   MAP_MAX_ZOOM,
+  OSM_BUILDINGS_3D_LAYER_ID,
   OVERTURE_BUILDINGS_PMTILES,
   SATELLITE_MAX_ZOOM,
 } from "@/components/map/map3d";
@@ -97,11 +98,18 @@ describe("3D map vehicle sprites, pins & geometry", () => {
     expect(pinParts[2]?.properties?.height).toBe(25);
   });
 
-  it("mounts real Overture 3D buildings, clamps satellite zoom, and emits zero fake statues", () => {
+  it("mounts fast OSM + Overture 3D buildings across all 4 cities, clamps satellite zoom, and emits zero fake statues", () => {
     expect(ESRI_WORLD_IMAGERY_TILES).toContain("World_Imagery/MapServer/tile/{z}/{y}/{x}");
     expect(OVERTURE_BUILDINGS_PMTILES).toContain("2026-11-18.0/buildings.pmtiles");
+    expect(OSM_BUILDINGS_3D_LAYER_ID).toBe("cargo-osm-buildings-3d");
     expect(SATELLITE_MAX_ZOOM).toBe(17);
     expect(MAP_MAX_ZOOM).toBeLessThanOrEqual(17.5);
+
+    // Every city opens at z14.6+ & pitch>=54 so real 3D buildings render immediately
+    for (const cityId of CITY_ORDER) {
+      expect(CITIES[cityId].zoom).toBeGreaterThanOrEqual(14.5);
+      expect(CITIES[cityId].pitch).toBeGreaterThanOrEqual(52);
+    }
 
     // Worabe centers cleanly onto the real town highway spine & K'ali K'esa Bota corridor
     const [wLng, wLat] = CITIES.worabe.center;

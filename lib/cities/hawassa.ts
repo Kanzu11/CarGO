@@ -12,8 +12,8 @@ export const HAWASSA_CITY: CityConfig = {
   region: "Sidama",
   platePrefix: "SD",
   center: [38.4763, 7.0504],
-  zoom: 14.1,
-  pitch: 48,
+  zoom: 14.8,
+  pitch: 54,
   bearing: -10,
   bounds: [
     [38.448, 7.022],

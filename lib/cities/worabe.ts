@@ -12,8 +12,8 @@ export const WORABE_CITY: CityConfig = {
   region: "Central Ethiopia",
   platePrefix: "CE",
   center: [38.1852, 7.8442],
-  zoom: 14.3,
-  pitch: 52,
+  zoom: 14.6,
+  pitch: 54,
   bearing: 0,
   bounds: [
     [38.17, 7.828],

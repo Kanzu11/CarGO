@@ -72,6 +72,12 @@ export interface MapCanvasProps {
   className?: string;
 }
 
+function cityTargetZoom(cityZoom: number, variant: "mobile" | "dispatch"): number {
+  return variant === "dispatch"
+    ? Math.max(14.3, cityZoom - 0.3)
+    : Math.min(16.2, Math.max(14.8, cityZoom + 0.2));
+}
+
 export default function MapCanvas({
   variant,
   showCrosshair = false,
@@ -148,10 +154,6 @@ export default function MapCanvas({
 
     const initialCity = CITIES[useFleetStore.getState().cityId];
     const initial3d = useFleetStore.getState().map3dEnabled;
-    const preset =
-      variant === "dispatch"
-        ? CAMERA_PRESETS["dispatch-overview"]
-        : CAMERA_PRESETS["rider-pickup"];
 
     setWorkerUrl(`${window.location.origin}/maplibre-gl-worker.mjs`);
 
@@ -159,13 +161,10 @@ export default function MapCanvas({
       container,
       style: OPENFREEMAP_POSITRON_STYLE,
       center: initialCity.center,
-      zoom: Math.min(
-        16.5,
-        variant === "dispatch" ? initialCity.zoom - 0.5 : initialCity.zoom + 0.5,
-      ),
+      zoom: cityTargetZoom(initialCity.zoom, variant),
       minZoom: MAP_MIN_ZOOM,
       maxZoom: MAP_MAX_ZOOM,
-      pitch: initial3d ? preset.pitch : 0,
+      pitch: initial3d ? initialCity.pitch : 0,
       bearing: initial3d ? initialCity.bearing : 0,
       maxPitch: 68,
       attributionControl: false,
@@ -404,10 +403,6 @@ export default function MapCanvas({
     if (!map || !mapReady || lastCityRef.current === cityId) return;
     lastCityRef.current = cityId;
     const city = CITIES[cityId];
-    const preset =
-      variant === "dispatch"
-        ? CAMERA_PRESETS["dispatch-overview"]
-        : CAMERA_PRESETS["rider-pickup"];
 
     const useGpsCenter =
       variant === "mobile" &&
@@ -417,10 +412,8 @@ export default function MapCanvas({
 
     map.flyTo({
       center: useGpsCenter ? userGeo.coords : city.center,
-      zoom: useGpsCenter
-        ? 16.4
-        : Math.min(16.5, variant === "dispatch" ? city.zoom - 0.5 : city.zoom + 0.5),
-      pitch: map3dEnabled ? preset.pitch : 0,
+      zoom: useGpsCenter ? 16.4 : cityTargetZoom(city.zoom, variant),
+      pitch: map3dEnabled ? city.pitch : 0,
       bearing: map3dEnabled ? city.bearing : 0,
       duration: 1100,
       essential: true,
@@ -581,8 +574,8 @@ export default function MapCanvas({
 
     map.flyTo({
       center: city.center,
-      zoom: variant === "dispatch" ? city.zoom - 0.5 : city.zoom + 0.5,
-      pitch: map3dEnabled ? preset.pitch : 0,
+      zoom: cityTargetZoom(city.zoom, variant),
+      pitch: map3dEnabled ? city.pitch : 0,
       bearing: map3dEnabled ? city.bearing : 0,
       duration: 750,
     });
