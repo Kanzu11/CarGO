@@ -288,23 +288,50 @@ export class FleetSimulator {
 
     const city = CITIES[cityId];
     const adj = buildAdjacency(city.graph);
-    const nodeIds = Object.keys(city.graph.nodes);
+    const sortedNodeIds = Object.keys(city.graph.nodes).sort(
+      (a, b) =>
+        haversineKm(city.graph.nodes[a]!, city.center) -
+        haversineKm(city.graph.nodes[b]!, city.center),
+    );
+    const coreNodeIds = sortedNodeIds.slice(0, Math.min(sortedNodeIds.length, 8));
+    const coreSet = new Set(coreNodeIds);
+    const outerNodeIds = sortedNodeIds.slice(coreNodeIds.length);
 
+    // Interleave tiers round-robin so every tier appears both downtown and citywide
+    const remaining: Record<Tier, number> = {
+      bajaj: TIERS.bajaj.spawnCount,
+      economy: TIERS.economy.spawnCount,
+      minivan: TIERS.minivan.spawnCount,
+      cargo: TIERS.cargo.spawnCount,
+    };
     const tierSchedule: Tier[] = [];
-    for (const tier of TIER_ORDER) {
-      const count = TIERS[tier].spawnCount;
-      for (let i = 0; i < count; i++) {
-        tierSchedule.push(tier);
+    while (tierSchedule.length < 20) {
+      let pushed = false;
+      for (const tier of TIER_ORDER) {
+        if (remaining[tier] > 0) {
+          tierSchedule.push(tier);
+          remaining[tier] -= 1;
+          pushed = true;
+        }
       }
+      if (!pushed) break;
     }
 
     const prefix = city.id.slice(0, 2).toUpperCase();
 
     tierSchedule.forEach((tier, idx) => {
       const id = `CG-${prefix}-${String(idx + 1).padStart(2, "0")}`;
-      const startNode = nodeIds[idx % nodeIds.length]!;
+      const isCoreVehicle = idx < 13;
+      const startNode = isCoreVehicle
+        ? coreNodeIds[idx % coreNodeIds.length]!
+        : (outerNodeIds[(idx - 13) % Math.max(1, outerNodeIds.length)] ??
+          sortedNodeIds[idx % sortedNodeIds.length]!);
       const neighbors = adj[startNode] ?? [];
-      const targetNode = neighbors[idx % Math.max(1, neighbors.length)] ?? startNode;
+      const coreNeighbors = neighbors.filter((n) => coreSet.has(n));
+      const candidateNeighbors =
+        isCoreVehicle && coreNeighbors.length > 0 ? coreNeighbors : neighbors;
+      const targetNode =
+        candidateNeighbors[idx % Math.max(1, candidateNeighbors.length)] ?? startNode;
       const startCoords = city.graph.nodes[startNode]!;
       const targetCoords = city.graph.nodes[targetNode]!;
       const edgeProgress = Number(((idx * 0.23) % 0.85).toFixed(2));
@@ -378,10 +405,21 @@ export class FleetSimulator {
       const arrivedNode = vState.targetNodeId;
       const neighbors = adj[arrivedNode] ?? [];
       const forwardChoices = neighbors.filter((n) => n !== vState.currentNodeId);
-      const nextTarget =
-        forwardChoices.length > 0
-          ? pickRandom(forwardChoices, this.rng)
-          : (neighbors[0] ?? vState.currentNodeId);
+      const distFromCenter = haversineKm(city.graph.nodes[arrivedNode]!, city.center);
+      let nextTarget: string;
+      if (distFromCenter > 1.8 && forwardChoices.length > 1 && this.rng() < 0.65) {
+        nextTarget = forwardChoices.reduce((closest, candidate) =>
+          haversineKm(city.graph.nodes[candidate]!, city.center) <
+          haversineKm(city.graph.nodes[closest]!, city.center)
+            ? candidate
+            : closest,
+        );
+      } else {
+        nextTarget =
+          forwardChoices.length > 0
+            ? pickRandom(forwardChoices, this.rng)
+            : (neighbors[0] ?? vState.currentNodeId);
+      }
 
       vState.currentNodeId = arrivedNode;
       vState.targetNodeId = nextTarget;
@@ -403,8 +441,14 @@ export class FleetSimulator {
     const { trip } = tState;
     if (!isActiveTripPhase(trip.phase)) return;
 
-    // Background trips pause when Simulate Traffic is switched off
+    // Background trips pause cleanly when Simulate Traffic is switched off
     if (trip.source === "background" && !this.trafficEnabled) {
+      const pausedVehicle = trip.vehicleId ? this.vehicles.get(trip.vehicleId) : undefined;
+      if (pausedVehicle) {
+        pausedVehicle.prevPosition = pausedVehicle.vehicle.position;
+        pausedVehicle.prevBearing = pausedVehicle.vehicle.bearing;
+        pausedVehicle.vehicle.speedKmh = 0;
+      }
       return;
     }
 

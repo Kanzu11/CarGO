@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CITIES, CITY_ORDER } from "@/lib/cities";
 import { FleetSimulator } from "@/lib/fleetSimulator";
+import { haversineKm } from "@/lib/geo";
 
 describe("FleetSimulator", () => {
   it("spawns 20 vehicles across 4 Ethiopian tiers in every supported city", () => {
@@ -86,5 +87,51 @@ describe("FleetSimulator", () => {
     sim.handleClientMessage({ type: "job.advance", tripId: offer.tripId }, (now += 1000));
     driverTrip = sim.getSnapshot(now).trips.find((t) => t.id === offer.tripId)!;
     expect(driverTrip.phase).toBe("COMPLETED");
+  });
+
+  it("simulates downtown traffic and pauses/resumes all traffic across all 4 cities", () => {
+    for (const cityId of CITY_ORDER) {
+      const sim = new FleetSimulator(cityId);
+      let now = 1_700_000_000_000;
+      const snap0 = sim.getSnapshot(now);
+      const center = CITIES[cityId].center;
+
+      const downtownCount = snap0.vehicles.filter(
+        (v) => haversineKm(v.position, center) <= 2.0,
+      ).length;
+      expect(downtownCount).toBeGreaterThanOrEqual(10);
+
+      // Stepping with trafficEnabled=true moves vehicles across the city
+      sim.step((now += 1000));
+      const snap1 = sim.getSnapshot(now);
+      const movedWhileActive = snap1.vehicles.filter((v, idx) => {
+        const prev = snap0.vehicles[idx]!;
+        return prev.position[0] !== v.position[0] || prev.position[1] !== v.position[1];
+      });
+      expect(movedWhileActive.length).toBeGreaterThanOrEqual(15);
+
+      // Pausing traffic freezes all idle & background-trip vehicles
+      sim.handleClientMessage({ type: "sim.traffic", enabled: false }, now);
+      const pausedBefore = sim.getSnapshot(now);
+      sim.step((now += 1000));
+      const pausedAfter = sim.getSnapshot(now);
+      expect(pausedAfter.trafficEnabled).toBe(false);
+      for (const vAfter of pausedAfter.vehicles) {
+        const vBefore = pausedBefore.vehicles.find((v) => v.id === vAfter.id)!;
+        expect(vAfter.position).toEqual(vBefore.position);
+        expect(vAfter.speedKmh).toBe(0);
+      }
+
+      // Re-enabling traffic resumes motion
+      sim.handleClientMessage({ type: "sim.traffic", enabled: true }, now);
+      sim.step((now += 1000));
+      const resumed = sim.getSnapshot(now);
+      expect(resumed.trafficEnabled).toBe(true);
+      const movedOnResume = resumed.vehicles.filter((vAfter) => {
+        const vBefore = pausedAfter.vehicles.find((v) => v.id === vAfter.id)!;
+        return vAfter.position[0] !== vBefore.position[0] || vAfter.position[1] !== vBefore.position[1];
+      });
+      expect(movedOnResume.length).toBeGreaterThanOrEqual(15);
+    }
   });
 });

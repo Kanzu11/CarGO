@@ -151,6 +151,9 @@ export const ADDIS_CITY: CityConfig = {
       A20: [38.7895, 9.0242], // Shola Market
       A21: [38.7418, 9.0228], // Teklehaimanot
       A22: [38.7865, 8.9892], // Bole Brass
+      A23: [38.7535, 9.0103], // Legehar / Addis Stadium
+      A24: [38.7495, 9.0052], // Lideta / Smuts Ave
+      A25: [38.7652, 9.0082], // Meskel East / Bambis
     },
     edges: [
       // Churchill Ave & Arada loop
@@ -163,6 +166,16 @@ export const ADDIS_CITY: CityConfig = {
       ["A21", "A02"],
       // Mexico - Meskel - Kazanchis central spine
       ["A04", "A03"],
+      ["A04", "A23"],
+      ["A23", "A03"],
+      ["A23", "A02"],
+      ["A04", "A24"],
+      ["A24", "A06"],
+      ["A24", "A23"],
+      ["A03", "A25"],
+      ["A25", "A08"],
+      ["A25", "A13"],
+      ["A25", "A14"],
       ["A04", "A05"],
       ["A05", "A06"],
       ["A04", "A06"],
