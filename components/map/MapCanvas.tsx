@@ -154,6 +154,7 @@ export default function MapCanvas({
 
     const initialCity = CITIES[useFleetStore.getState().cityId];
     const initial3d = useFleetStore.getState().map3dEnabled;
+    lastCityRef.current = initialCity.id;
 
     setWorkerUrl(`${window.location.origin}/maplibre-gl-worker.mjs`);
 
@@ -397,7 +398,7 @@ export default function MapCanvas({
     }
   }, [mapReady, userGeo, locationSource, variant, map3dEnabled, cityId]);
 
-  // Sync city switches smoothly via flyTo
+  // Sync city switches cleanly via instant cross-city jump
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || lastCityRef.current === cityId) return;
@@ -410,17 +411,16 @@ export default function MapCanvas({
       userGeo?.isWithinCity &&
       userGeo.nearestCityId === cityId;
 
-    map.flyTo({
+    map.stop();
+    map.jumpTo({
       center: useGpsCenter ? userGeo.coords : city.center,
       zoom: useGpsCenter ? 16.4 : cityTargetZoom(city.zoom, variant),
       pitch: map3dEnabled ? city.pitch : 0,
       bearing: map3dEnabled ? city.bearing : 0,
-      duration: 1100,
-      essential: true,
     });
   }, [cityId, mapReady, map3dEnabled, variant, locationSource, userGeo]);
 
-  // Sync MapLibre padding and re-center initial viewport cleanly inside un-obscured bounds
+  // Sync MapLibre padding without cancelling city switches
   const initialPaddingAppliedRef = useRef(false);
   useEffect(() => {
     const map = mapRef.current;
@@ -433,9 +433,9 @@ export default function MapCanvas({
     });
     if (!initialPaddingAppliedRef.current) {
       initialPaddingAppliedRef.current = true;
-      map.jumpTo({ center: CITIES[cityId].center });
+      map.jumpTo({ center: CITIES[useFleetStore.getState().cityId].center });
     }
-  }, [mapReady, cityId, padding?.top, padding?.right, padding?.bottom, padding?.left]);
+  }, [mapReady, padding?.top, padding?.right, padding?.bottom, padding?.left]);
 
   const lastFitKeyRef = useRef<string | undefined>(undefined);
   const fitDataRef = useRef({ fitBoundsCoords, padding, map3dEnabled });

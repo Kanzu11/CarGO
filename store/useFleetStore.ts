@@ -463,19 +463,24 @@ export const useFleetStore = create<FleetStoreState>()(
 
       completeAndResetRiderTrip: (rating) => {
         const { activeRiderTripId } = get();
+        set({
+          activeRiderTripId: null,
+          persistedRiderTrip: null,
+          riderStep: "location",
+          customLandmarkNote: "",
+          pickingTarget: "destination",
+        });
         if (activeRiderTripId && rating) {
           transportSendRef?.({
             type: "trip.rate",
             tripId: activeRiderTripId,
             rating,
           });
+          toast("Thanks for riding with CarGo", {
+            description: `Rated ${rating}★`,
+            tone: "live",
+          });
         }
-        set({
-          activeRiderTripId: null,
-          persistedRiderTrip: null,
-          riderStep: "location",
-          customLandmarkNote: "",
-        });
       },
 
       triggerRiderSos: () => {
@@ -699,12 +704,33 @@ export const useFleetStore = create<FleetStoreState>()(
               : [updated, ...existingTrips];
 
             if (updated.source === "rider") {
-              set({
-                trips: nextTrips,
-                activeRiderTripId: updated.phase === "CANCELLED" ? null : updated.id,
-                persistedRiderTrip: isActiveTripPhase(updated.phase) ? updated : null,
-                riderStep: updated.phase === "CANCELLED" ? "location" : "trip",
-              });
+              const currentActiveId = get().activeRiderTripId;
+              const isRatedCompletion =
+                updated.phase === "COMPLETED" &&
+                (typeof updated.rating === "number" || currentActiveId !== updated.id);
+
+              if (updated.phase === "CANCELLED") {
+                set({
+                  trips: nextTrips,
+                  activeRiderTripId: currentActiveId === updated.id ? null : currentActiveId,
+                  persistedRiderTrip: null,
+                  riderStep: currentActiveId === updated.id ? "location" : get().riderStep,
+                });
+              } else if (isRatedCompletion) {
+                set({
+                  trips: nextTrips,
+                  activeRiderTripId: null,
+                  persistedRiderTrip: null,
+                  riderStep: "location",
+                });
+              } else {
+                set({
+                  trips: nextTrips,
+                  activeRiderTripId: updated.id,
+                  persistedRiderTrip: isActiveTripPhase(updated.phase) ? updated : null,
+                  riderStep: "trip",
+                });
+              }
             } else if (updated.source === "driver") {
               set({
                 trips: nextTrips,

@@ -84,8 +84,16 @@ describe("Phase 4 Rider & Driver helpers + store flows", () => {
     expect(completedTrip?.phase).toBe("COMPLETED");
     expect(completedTrip?.payment).toBe("cbe_birr");
 
-    // Rider taps Done -> returns to Step 1 and subsequent ticks stay on Step 1
+    // Rider taps Done -> returns to Step 1 and subsequent ticks + async trip.rate updates stay on Step 1
     useFleetStore.getState().completeAndResetRiderTrip(5);
+    expect(useFleetStore.getState().riderStep).toBe("location");
+    expect(useFleetStore.getState().activeRiderTripId).toBeNull();
+
+    // Simulate async BroadcastChannel/server delivery of rated COMPLETED trip.updated
+    useFleetStore.getState().applyServerMessage({
+      type: "trip.updated",
+      trip: { ...completedTrip!, rating: 5 },
+    });
     expect(useFleetStore.getState().riderStep).toBe("location");
     expect(useFleetStore.getState().activeRiderTripId).toBeNull();
 
@@ -136,6 +144,25 @@ describe("Phase 4 Rider & Driver helpers + store flows", () => {
     expect(after.activeDriverTripId).toBeNull();
     expect(after.driverTripsCompleted).toBe(7);
     expect(after.driverEarningsEtb).toBe(640 + expectedPayout);
+
+    unsub();
+  });
+
+  it("switches cities instantaneously across Addis Ababa, Adama, Hawassa & Worabe without reload", () => {
+    const sim = new FleetSimulator("addis");
+    useFleetStore.getState().bindTransportSend((msg) => sim.handleClientMessage(msg, Date.now()));
+    const unsub = sim.subscribe((msg) => useFleetStore.getState().applyServerMessage(msg));
+
+    for (const targetCity of ["worabe", "adama", "hawassa", "addis"] as const) {
+      useFleetStore.getState().setCity(targetCity);
+      const state = useFleetStore.getState();
+      expect(state.cityId).toBe(targetCity);
+      expect(state.pickup.id).toBe(CITIES[targetCity].landmarks[0]!.id);
+      expect(state.destination?.id).toBe(CITIES[targetCity].landmarks[1]!.id);
+      expect(state.vehicles).toHaveLength(20);
+      expect(state.vehicles[0]?.cityId).toBe(targetCity);
+      expect(state.vehicles[0]?.plate.startsWith(CITIES[targetCity].platePrefix)).toBe(true);
+    }
 
     unsub();
   });
