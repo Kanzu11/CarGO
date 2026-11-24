@@ -157,7 +157,7 @@ export function LocationStep({ onRequestGps }: LocationStepProps) {
           className={cn(
             "flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors",
             pickingTarget === "destination"
-              ? "border-live bg-live-soft/35"
+              ? "border-live bg-live-soft"
               : "border-line bg-canvas hover:bg-surface",
           )}
         >

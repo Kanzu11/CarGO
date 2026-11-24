@@ -5,10 +5,7 @@
    No gradients, no blur, no glow, no elevation shadows.
    Surfaces are separated by 1px hairline borders only.
    ------------------------------------------------------------------ */
-@theme {
-  --font-sans: var(--font-inter), var(--font-ethiopic), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;
-
+@theme inline {
   --color-canvas: #ffffff;
   --color-surface: #f8f9fa;
   --color-ink: #111827;
@@ -22,6 +19,11 @@
   --color-warn-soft: #fffbeb;
   --color-danger: #dc2626;
   --color-danger-soft: #fef2f2;
+}
+
+@theme {
+  --font-sans: var(--font-inter), var(--font-ethiopic), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;
 
   --radius-lg: 8px;
   --radius-xl: 12px;
@@ -83,6 +85,22 @@
 }
 
 @layer base {
+  :root {
+    --color-canvas: #ffffff;
+    --color-surface: #f8f9fa;
+    --color-ink: #111827;
+    --color-muted: #6b7280;
+    --color-line: #e5e7eb;
+    --color-line-strong: #d1d5db;
+    --color-brand: #09090b;
+    --color-live: #047857;
+    --color-live-soft: #ecfdf5;
+    --color-warn: #d97706;
+    --color-warn-soft: #fffbeb;
+    --color-danger: #dc2626;
+    --color-danger-soft: #fef2f2;
+  }
+
   html,
   body {
     height: 100dvh;
@@ -139,6 +157,58 @@
       font-size: 14px;
     }
   }
+}
+
+button.bg-brand,
+a.bg-brand {
+  background-color: #09090b;
+  color: #ffffff;
+}
+button.bg-brand:hover,
+a.bg-brand:hover {
+  background-color: #27272a;
+}
+button.bg-brand:active,
+a.bg-brand:active {
+  background-color: #000000;
+}
+button.bg-live,
+a.bg-live {
+  background-color: #047857;
+  color: #ffffff;
+}
+button.bg-live:hover,
+a.bg-live:hover {
+  background-color: #065f46;
+}
+button.bg-live:active,
+a.bg-live:active {
+  background-color: #064e3b;
+}
+button.bg-live-soft {
+  background-color: #ecfdf5;
+}
+button.border-brand,
+span.border-brand,
+div.border-brand {
+  border-color: #09090b;
+}
+button.border-live,
+span.border-live,
+div.border-live {
+  border-color: #047857;
+}
+button.border-danger {
+  border-color: #dc2626;
+}
+button.text-danger {
+  color: #dc2626;
+}
+button.text-muted {
+  color: #6b7280;
+}
+button.text-muted:hover {
+  color: #111827;
 }
 
 @layer utilities {
